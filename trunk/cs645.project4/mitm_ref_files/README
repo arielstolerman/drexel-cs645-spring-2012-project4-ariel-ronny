@@ -1,0 +1,75 @@
+OVERVIEW
+
+mitm-proxy is an Java-based SSL proxy that acts as a "man in the middle".  In other words, proxied HTTPS requests are terminated by the proxy and resent to the remote webserver.  The server certificates presented to the client (i.e. a web browser) are dynamically generated/signed by the proxy and contain most of the same fields as the original webserver certificate.  The subject DN, serial number, validity dates, and extensions are preserved.  However, the issuer DN is now set to the name of the proxy's self-signed certificate and the public/private keys of the proxy are used in signing the forged certificate.  These forged certificates are cached (in memory) by the proxy, for better performance.
+
+Note that this tool can NOT be used for any commercial purposes, as is, because it makes use of an educational/research version of the IAIK JCE library.
+
+QUICK START
+
+* The run.sh script illustrates the typical way of starting the proxy:
+  - The proxy is started on port 8888 of localhost.
+  - The plaintext of HTTP requests is stored in output.txt. 
+  - The proxy's certificate is in the java keystore file "FakeCAStore", which has password "passphrase"
+
+* Configure your browser to make use of an SSL proxy, in this case "localhost:8888"
+* Import the FakeCA.cer certificate as a trusted CA certificate
+* Browse the web and see the plaintext of HTTPS requests in output.txt
+
+USAGE
+
+* java mitm.MITMProxyServer <options>
+ 
+  Where options can include:
+ 
+   [-localHost <host name/ip>]  Default is localhost
+   [-localPort <port>]          Default is 8001
+   [-keyStore <file>]           Key store details for
+   [-keyStorePassword <pass>]   certificates. Equivalent to
+   [-keyStoreType <type>]       javax.net.ssl.XXX properties
+   [-keyStoreAlias <alias>]     Default is keytool default of 'mykey'
+   [-outputFile <filename>]     Default is stdout
+   [-v ]                        Verbose proxy output
+   [-h ]                        Print this message
+
+* A new self-signed proxy certificate can be created by invoking:
+  - keytool -genkey -keystore <your-file> -storepass <your-pass> -keyalg rsa
+* Verbose proxy output includes:
+  - Details about the proxied data connection's endpoints
+  - The remote webserver certificate's common name field
+  - The newly forged certificate
+
+
+FILE LIST
+
+  * FakeCAStore
+  * FakeCA.cer
+  * iaik_jce.jar
+  * LICENSE
+  * README
+  * Makefile
+  * run.sh
+  * mitm/ConnectionDetails.java
+  * mitm/CopyStreamRunnable.java
+  * mitm/HTTPSProxyEngine.java
+  * mitm/JSSEConstants.java
+  * mitm/MITMPlainSocketFactory.java
+  * mitm/MITMProxyServer.java:  Main class 
+  * mitm/MITMSocketFactory.java
+  * mitm/MITMSSLSocketFactory.java
+  * mitm/ProxyDataFilter.java
+  * mitm/ProxyEngine.java
+  * mitm/SignCert.java
+  * mitm/StreamThread.java
+  * mitm/X509CertificateGenerator.java
+
+
+CREDITS
+
+* Team:
+  - Srinivas Inguva
+  - Dan Boneh
+  - Ian Baker
+
+* Originally developed as a class project for use in "Introduction to Cryptography" (http://cs255.stanford.edu) taught by Prof. Dan Boneh, in Winter 2007.
+
+* The basis for this code was "The Grinder" tcpsniffer project, which can be found at  http://grinder.sourceforge.net/g2/tcpsniffer.html  
