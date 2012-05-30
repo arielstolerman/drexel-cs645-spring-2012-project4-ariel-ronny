@@ -4,23 +4,23 @@ JAVA            = java
 JAVAC           = javac
 
 JAVASRCS        = \
-			mitm/MITMProxyServer.java \
-			mitm/ConnectionDetails.java \
-			mitm/CopyStreamRunnable.java \
-			mitm/HTTPSProxyEngine.java \
-			mitm/JSSEConstants.java \
-			mitm/ProxyEngine.java \
-			mitm/ProxyDataFilter.java \
-			mitm/MITMPlainSocketFactory.java \
-			mitm/MITMSSLSocketFactory.java \
-			mitm/MITMSocketFactory.java \
-			mitm/StreamThread.java \
-			mitm/MITMAdminClient.java \
-			mitm/MITMAdminServer.java \
+			src/mitm/MITMProxyServer.java \
+			src/mitm/ConnectionDetails.java \
+			src/mitm/CopyStreamRunnable.java \
+			src/mitm/HTTPSProxyEngine.java \
+			src/mitm/JSSEConstants.java \
+			src/mitm/ProxyEngine.java \
+			src/mitm/ProxyDataFilter.java \
+			src/mitm/MITMPlainSocketFactory.java \
+			src/mitm/MITMSSLSocketFactory.java \
+			src/mitm/MITMSocketFactory.java \
+			src/mitm/StreamThread.java \
+			src/mitm/MITMAdminClient.java \
+			src/mitm/MITMAdminServer.java \
 
 JAVAOBJS        = $(JAVASRCS:.java=.class)
 
-JAVACFLAGS	= -classpath ${CLASSPATH}:.:iaik_jce.jar
+JAVACFLAGS	= -classpath ${CLASSPATH}:.:lib/iaik_jce.jar
 
 .SUFFIXES:	.class .java
 
@@ -28,6 +28,6 @@ JAVACFLAGS	= -classpath ${CLASSPATH}:.:iaik_jce.jar
 	    $(JAVAC) $(JAVACFLAGS) $*.java;
 
 clean:
-	    rm -f mitm/*\$*.class mitm/*.class mitm/*~
+	    rm -f src/mitm/*\$*.class src/mitm/*.class src/mitm/*~
 
 mitm:    $(JAVAOBJS)
