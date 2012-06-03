@@ -3,20 +3,11 @@
 
 package mitm;
 
-import java.io.BufferedInputStream;
-import java.io.InterruptedIOException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
+import java.io.*;
+import java.net.*;
 import java.security.cert.X509Certificate;
-import java.util.HashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+import java.util.*;
+import java.util.regex.*;
 import java.math.BigInteger;
 
 import javax.net.ssl.SSLSocket;
@@ -154,7 +145,16 @@ public class HTTPSProxyEngine extends ProxyEngine
 
 									String serverCN = null;
 									BigInteger serialno = null;
-									// TODO: add in code to get the remote server's CN  and serial number from its cert.
+
+									// *** SOLUTION START *** TODO
+									
+									// code for getting the remote server CN and serial number from its certificate
+									iaik.x509.X509Certificate iaikCert = new iaik.x509.X509Certificate(
+											((X509Certificate) remoteSocket.getSession().getPeerCertificates()[0]).getEncoded());
+									serverCN = ((Name) iaikCert.getSubjectDN()).getRDN(ObjectID.commonName);
+									serialno = iaikCert.getSerialNumber();
+									
+									// *** SOLUTION END ***
 
 									//We've already opened the socket, so might as well keep using it:
 									m_proxySSLEngine.setRemoteSocket(remoteSocket);
@@ -217,7 +217,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 		response.append("HTTP/1.0 ").append(msg).append("\r\n");
 		response.append("Host: " + remoteHost + ":" +
 				remotePort + "\r\n");
-		response.append("Proxy-agent: CSE490K-MITMProxy/1.0\r\n");
+		response.append("Proxy-agent: CS645-MITMProxy/1.0\r\n");
 		response.append("\r\n");
 		out.write(response.toString().getBytes());
 		out.flush();
@@ -251,12 +251,33 @@ public class HTTPSProxyEngine extends ProxyEngine
 			this.remoteSocket = s;
 		}
 
-		public final ServerSocket createServerSocket(String remoteServerCN, BigInteger serialno) throws IOException, java.security.GeneralSecurityException, Exception {
-			MITMSSLSocketFactory ssf = new MITMSSLSocketFactory(remoteServerCN, serialno);
-			// you may want to consider caching this result for better performance
+		public final ServerSocket createServerSocket(String remoteServerCN, BigInteger serialno)
+				throws IOException, java.security.GeneralSecurityException, Exception {
+			MITMSSLSocketFactory ssf;
+			
+			//*** SOLUTION START *** TODO
+			
+			// caching server-socket factory for better performance
+			// caching the factory and not the socket as many sockets can be created for
+			// the same serverCN
+			if (socketFactoryMap.containsKey(remoteServerCN)) {
+				// found factory
+				ssf = socketFactoryMap.get(remoteServerCN);
+			}
+			else {
+				// create new factory and cache
+				ssf = new MITMSSLSocketFactory(remoteServerCN, serialno);
+				socketFactoryMap.put(remoteServerCN, ssf);
+			}
+			
+			// *** SOLUTION END ***
+			
 			m_serverSocket = ssf.createServerSocket("localhost", 0, timeout);
 			return m_serverSocket;
 		}
+		
+		// *** server socket factory map for createServerSocket *** TODO
+		private Map<String,MITMSSLSocketFactory> socketFactoryMap = new HashMap<String,MITMSSLSocketFactory>();
 
 
 		/*
