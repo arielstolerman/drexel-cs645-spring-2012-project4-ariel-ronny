@@ -47,6 +47,9 @@ public class HTTPSProxyEngine extends ProxyEngine
 
 	private final ProxySSLEngine m_proxySSLEngine;
 
+	private boolean m_shutdown = false; //TODO indicator to whether the engine is shutdown by admin
+	private int m_proxiedRequestsCount = 0; //TODO proxied requests count
+
 	public HTTPSProxyEngine(MITMPlainSocketFactory plainSocketFactory,
 			MITMSSLSocketFactory sslSocketFactory,
 			ProxyDataFilter requestFilter,
@@ -88,7 +91,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 		// Should be more than adequate.
 		final byte[] buffer = new byte[40960];
 
-		while (true) {
+		while (!m_shutdown) { //TODO made run conditional of not being shutdown
 			try {
 				//Plaintext Socket with client (i.e. browser)
 				final Socket localSocket = getServerSocket().accept();
@@ -104,103 +107,103 @@ public class HTTPSProxyEngine extends ProxyEngine
 				// Read a buffer full.
 				final int bytesRead = in.read(buffer);
 
-				final String line =
-						bytesRead > 0 ?
-								new String(buffer, 0, bytesRead, "US-ASCII") : "";
+				final String line = bytesRead > 0 ? new String(buffer, 0, bytesRead, "US-ASCII") : "";
 
-								final Matcher httpsConnectMatcher =
-										m_httpsConnectPattern.matcher(line);
+				final Matcher httpsConnectMatcher =
+						m_httpsConnectPattern.matcher(line);
 
-								// 'grep' for CONNECT message and extract the remote server/port
+				// 'grep' for CONNECT message and extract the remote server/port
 
-								if (httpsConnectMatcher.find()) {//then we have a proxy CONNECT message!
-									// Discard any other plaintext data the client sends us:
-									while (in.read(buffer, 0, in.available()) > 0) {
-									}
+				if (httpsConnectMatcher.find()) {//then we have a proxy CONNECT message!
+					// Discard any other plaintext data the client sends us:
+					while (in.read(buffer, 0, in.available()) > 0) {
+					}
 
-									final String remoteHost = httpsConnectMatcher.group(1);
+					final String remoteHost = httpsConnectMatcher.group(1);
 
-									// Must be a port number by specification.
-									final int remotePort = Integer.parseInt(httpsConnectMatcher.group(2));
+					// Must be a port number by specification.
+					final int remotePort = Integer.parseInt(httpsConnectMatcher.group(2));
 
-									final String target = remoteHost + ":" + remotePort;
+					final String target = remoteHost + ":" + remotePort;
 
-									System.err.println("******* Establishing a new HTTPS proxy connection to " + target);
+					System.err.println("******* Establishing a new HTTPS proxy connection to " + target);
 
-									m_tempRemoteHost = remoteHost;
-									m_tempRemotePort = remotePort;
+					m_tempRemoteHost = remoteHost;
+					m_tempRemotePort = remotePort;
 
-									X509Certificate java_cert = null;
-									SSLSocket remoteSocket = null;
-									try {
-										//Lookup the "common name" field of the certificate from the remote server:
-										remoteSocket = (SSLSocket)
-												m_proxySSLEngine.getSocketFactory().createClientSocket(remoteHost, remotePort);
-									} catch (IOException ioe) {
-										ioe.printStackTrace();
-										// Try to be nice and send a reasonable error message to client
-										sendClientResponse(localSocket.getOutputStream(),"504 Gateway Timeout",remoteHost,remotePort);
-										continue;
-									}
+					//X509Certificate java_cert = null; - unused
+					SSLSocket remoteSocket = null;
+					try {
+						//Lookup the "common name" field of the certificate from the remote server:
+						remoteSocket = (SSLSocket)
+								m_proxySSLEngine.getSocketFactory().createClientSocket(remoteHost, remotePort);
+					} catch (IOException ioe) {
+						ioe.printStackTrace();
+						// Try to be nice and send a reasonable error message to client
+						sendClientResponse(localSocket.getOutputStream(),"504 Gateway Timeout",remoteHost,remotePort);
+						continue;
+					}
 
-									String serverCN = null;
-									BigInteger serialno = null;
+					String serverCN = null;
+					BigInteger serialno = null;
 
-									// *** SOLUTION START *** TODO
-									
-									// code for getting the remote server CN and serial number from its certificate
-									iaik.x509.X509Certificate iaikCert = new iaik.x509.X509Certificate(
-											((X509Certificate) remoteSocket.getSession().getPeerCertificates()[0]).getEncoded());
-									serverCN = ((Name) iaikCert.getSubjectDN()).getRDN(ObjectID.commonName);
-									serialno = iaikCert.getSerialNumber();
-									
-									// *** SOLUTION END ***
+					// *** START *** TODO
 
-									//We've already opened the socket, so might as well keep using it:
-									m_proxySSLEngine.setRemoteSocket(remoteSocket);
+					// code for getting the remote server CN and serial number from its certificate
+					iaik.x509.X509Certificate iaikCert = new iaik.x509.X509Certificate(
+							((X509Certificate) remoteSocket.getSession().getPeerCertificates()[0]).getEncoded());
+					serverCN = ((Name) iaikCert.getSubjectDN()).getRDN(ObjectID.commonName);
+					serialno = iaikCert.getSerialNumber();
 
-									//This is a CRUCIAL step:  we dynamically generate a new cert, based
-									// on the remote server's CN, and return a reference to the internal
-									// server socket that will make use of it.
-									ServerSocket localProxy = m_proxySSLEngine.createServerSocket(serverCN, serialno);
+					// *** END ***
 
-									//Kick off a new thread to send/recv data to/from the remote server.
-									// Remote server's response data is made available via an internal 
-									// SSLServerSocket.  All this work is handled by the m_proxySSLEngine:
-									new Thread(m_proxySSLEngine, "HTTPS proxy SSL engine").start();
+					//We've already opened the socket, so might as well keep using it:
+					m_proxySSLEngine.setRemoteSocket(remoteSocket);
 
-									try {Thread.sleep(10);} catch (Exception ignore) {}
+					//This is a CRUCIAL step:  we dynamically generate a new cert, based
+					// on the remote server's CN, and return a reference to the internal
+					// server socket that will make use of it.
+					ServerSocket localProxy = m_proxySSLEngine.createServerSocket(serverCN, serialno);
 
-									// Create a new socket connection to our proxy engine.
-									final Socket sslProxySocket =
-											getSocketFactory().createClientSocket(
-													getConnectionDetails().getLocalHost(),
-													localProxy.getLocalPort());
+					//Kick off a new thread to send/recv data to/from the remote server.
+					// Remote server's response data is made available via an internal 
+					// SSLServerSocket.  All this work is handled by the m_proxySSLEngine:
+					new Thread(m_proxySSLEngine, "HTTPS proxy SSL engine").start();
 
-									// Now set up a couple of threads to punt
-									// everything we receive over localSocket to
-									// sslProxySocket, and vice versa.
-									new Thread(new CopyStreamRunnable(
-											in, sslProxySocket.getOutputStream()),
-											"Copy to proxy engine for " + target).start();
+					try {Thread.sleep(10);} catch (Exception ignore) {}
 
-									final OutputStream out = localSocket.getOutputStream();
+					// Create a new socket connection to our proxy engine.
+					final Socket sslProxySocket =
+							getSocketFactory().createClientSocket(
+									getConnectionDetails().getLocalHost(),
+									localProxy.getLocalPort());
 
-									new Thread(new CopyStreamRunnable(
-											sslProxySocket.getInputStream(), out),
-											"Copy from proxy engine for " + target).start();
+					// Now set up a couple of threads to punt
+					// everything we receive over localSocket to
+					// sslProxySocket, and vice versa.
+					new Thread(new CopyStreamRunnable(
+							in, sslProxySocket.getOutputStream()),
+							"Copy to proxy engine for " + target).start();
 
-									// Send a 200 response to send to client. Client
-									// will now start sending SSL data to localSocket.
-									sendClientResponse(out,"200 OK",remoteHost,remotePort);
-								}
-								else { //Not a CONNECT request.. nothing we can do.
-									System.err.println(
-											"Failed to determine proxy destination from message:");
-									System.err.println(line);
-									sendClientResponse(localSocket.getOutputStream(),"501 Not Implemented","localhost",
-											getConnectionDetails().getLocalPort());
-								}
+					final OutputStream out = localSocket.getOutputStream();
+
+					new Thread(new CopyStreamRunnable(
+							sslProxySocket.getInputStream(), out),
+							"Copy from proxy engine for " + target).start();
+
+					// Send a 200 response to send to client. Client
+					// will now start sending SSL data to localSocket.
+					sendClientResponse(out,"200 OK",remoteHost,remotePort);
+					
+					m_proxiedRequestsCount++; //TODO increment the number of proxied requests
+				}
+				else { //Not a CONNECT request.. nothing we can do.
+					System.err.println(
+							"Failed to determine proxy destination from message:");
+					System.err.println(line);
+					sendClientResponse(localSocket.getOutputStream(),"501 Not Implemented","localhost",
+							getConnectionDetails().getLocalPort());
+				}
 			}
 			catch (InterruptedIOException e) {
 				System.err.println(ACCEPT_TIMEOUT_MESSAGE);
@@ -222,6 +225,20 @@ public class HTTPSProxyEngine extends ProxyEngine
 		out.write(response.toString().getBytes());
 		out.flush();
 	}
+
+	// *** START *** TODO
+
+	// getter for the number of proxied requests
+	public int getProxiedRequestsCount() {
+		return m_proxiedRequestsCount;
+	}
+
+	// setter for engine shutdown flag
+	public void shutdown() {
+		m_shutdown = true;
+	}
+
+	// *** END ***
 
 	/*
 	 * Used to funnel data between a client (e.g. a web browser) and a
@@ -254,9 +271,9 @@ public class HTTPSProxyEngine extends ProxyEngine
 		public final ServerSocket createServerSocket(String remoteServerCN, BigInteger serialno)
 				throws IOException, java.security.GeneralSecurityException, Exception {
 			MITMSSLSocketFactory ssf;
-			
-			//*** SOLUTION START *** TODO
-			
+
+			//*** START *** TODO
+
 			// caching server-socket factory for better performance
 			// caching the factory and not the socket as many sockets can be created for
 			// the same serverCN
@@ -269,16 +286,15 @@ public class HTTPSProxyEngine extends ProxyEngine
 				ssf = new MITMSSLSocketFactory(remoteServerCN, serialno);
 				socketFactoryMap.put(remoteServerCN, ssf);
 			}
-			
-			// *** SOLUTION END ***
-			
+
+			// *** END ***
+
 			m_serverSocket = ssf.createServerSocket("localhost", 0, timeout);
 			return m_serverSocket;
 		}
-		
+
 		// *** server socket factory map for createServerSocket *** TODO
 		private Map<String,MITMSSLSocketFactory> socketFactoryMap = new HashMap<String,MITMSSLSocketFactory>();
-
 
 		/*
 		 * localSocket.get[In|Out]putStream() is data that's (indirectly)
