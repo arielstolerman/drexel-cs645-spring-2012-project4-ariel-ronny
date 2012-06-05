@@ -9,6 +9,8 @@ import java.io.*;
 import java.util.*;
 import java.util.regex.*;
 
+import javax.net.ssl.SSLServerSocket;
+
 // You need to add code to do the following
 // 1) use SSL sockets instead of the plain sockets provided
 // 2) check user authentication
@@ -16,14 +18,15 @@ import java.util.regex.*;
 
 class MITMAdminServer implements Runnable
 {
-	private ServerSocket m_serverSocket;
+	private static final String ADSERV_PREFIX = "[ADMIN_SERVER] "; //TODO for messages
+	private SSLServerSocket m_serverSocket; //TODO changed from ServerSocket
 	private Socket m_socket = null;
 	private HTTPSProxyEngine m_engine;
 
 	public MITMAdminServer( String localHost, int adminPort, HTTPSProxyEngine engine ) throws IOException {
 		MITMPlainSocketFactory socketFactory =
 				new MITMPlainSocketFactory();
-		m_serverSocket = socketFactory.createServerSocket( localHost, adminPort, 0 );
+		m_serverSocket = (SSLServerSocket) socketFactory.createServerSocket( localHost, adminPort, 0 ); //TODO added casting to SSLServerSocket
 		m_engine = engine;
 	}
 
@@ -41,32 +44,45 @@ class MITMAdminServer implements Runnable
 				BufferedInputStream in =
 						new BufferedInputStream(m_socket.getInputStream(),
 								buffer.length);
-
+				
+				PrintWriter socketWriter =
+						new PrintWriter(m_socket.getOutputStream()); //TODO socket output-stream for messages
+				
 				// Read a buffer full.
 				int bytesRead = in.read(buffer);
 
-				String line =
-						bytesRead > 0 ?
-								new String(buffer, 0, bytesRead) : "";
+				String line = bytesRead > 0 ? new String(buffer, 0, bytesRead) : "";
 
-								Matcher userPwdMatcher =
-										userPwdPattern.matcher(line);
+				Matcher userPwdMatcher =
+						userPwdPattern.matcher(line);
 
-								// parse username and pwd
-								if (userPwdMatcher.find()) {
-									String userName = userPwdMatcher.group(1);
-									String password = userPwdMatcher.group(2);
+				// parse username and pwd
+				if (userPwdMatcher.find()) {
+					String userName = userPwdMatcher.group(1);
+					String password = userPwdMatcher.group(2);
 
-									// authenticate
-									// if authenticated, do the command
-									boolean authenticated = true;
-									if( authenticated ) {
-										String command = userPwdMatcher.group(3);
-										String commonName = userPwdMatcher.group(4);
+					// authenticate
+					// if authenticated, do the command
+					boolean authenticated = authenticate(userName, password);
+					if( authenticated ) {
+						socketWriter.println(ADSERV_PREFIX + "User " + userName + " authenticated"); // TODO added message
+						String command = userPwdMatcher.group(3);
+						//String commonName = userPwdMatcher.group(4); - unused
 
-										doCommand( command );
-									}
-								}	
+						doCommand( command );
+					}
+					// *** START *** TODO
+
+					else {
+						// report authentication failed
+						socketWriter.println(ADSERV_PREFIX + "Authentication failed for user " + userName);
+						// close socket
+						m_socket.close();
+					}
+					socketWriter.close();
+
+					// *** END ***
+				}	
 			}
 			catch( InterruptedIOException e ) {
 			}
@@ -76,11 +92,36 @@ class MITMAdminServer implements Runnable
 		}
 	}
 
-	// TODO implement the commands
-	private void doCommand( String cmd ) throws IOException {
-
-		m_socket.close();
-
+	// *** START *** TODO
+	// added method for user authentication
+	private boolean authenticate(String userName, String password) {
+		// TODO ******************************************************************   write authentication   ******************************************************************************
+		return true;
 	}
-
+	
+	// implemented the doCommand method
+	private void doCommand( String cmd ) throws IOException {	
+		cmd = cmd.toLowerCase();
+		PrintWriter socketWriter = new PrintWriter(m_socket.getOutputStream());
+		
+		// iterate over possible commands
+		if (cmd.equals("shutdown")) {
+			// shutdown MITM server
+			socketWriter.println(ADSERV_PREFIX + "Shutting down MITM server");
+			m_engine.shutdown();
+		}
+		else if (cmd.equals("stats")) {
+			// List how many requests were proxied
+			socketWriter.println(ADSERV_PREFIX + "Proxied requests: " +
+					m_engine.getProxiedRequestsCount());
+			
+		}
+		else {
+			socketWriter.println(ADSERV_PREFIX + "Unrecognized command: " + cmd);
+		}
+		
+		socketWriter.close();
+		m_socket.close();
+	}
+	// *** END ***
 }
