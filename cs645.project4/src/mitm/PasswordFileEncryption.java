@@ -9,14 +9,14 @@ import javax.crypto.Cipher;
 
 /*
  * Keystore generated with:
- * > keytool -genkey -alias mykey -keysize 2048 -keypass falafel4u -storetype JKS -keyalg RSA -keystore mitm_keystore -validity 365
+ * > keytool -genkey -alias mykey -keysize 4096 -keypass falafel4u -storetype JKS -keyalg RSA -keystore mitm_keystore -validity 365
  */
 @SuppressWarnings("restriction")
 public class PasswordFileEncryption {
 
-	private static final int DEFAULT_KEYSIZE =		2048;
+	private static final int DEFAULT_KEYSIZE =		4096;
 	private static final String DEFAULT_ENC_ALGORITHM = "RSA";
-	private static final String DEFAULT_KEYSTORE_FILE = "AdminServerStore";
+	private static final String DEFAULT_KEYSTORE_FILE = "mitm_keystore";
 	private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
 	private static final String PLAINTEXT_PASSWORD_FILE = "mitm_admin_passwords.txt";
 	private static final String DELIM = " ";
@@ -81,7 +81,7 @@ public class PasswordFileEncryption {
 	public PasswordFileEncryption() {}
 	
 	private String m_keystoreFile;
-	private String m_kestorePass;
+	private String m_keystorePass;
 	private String m_keystoreType;
 	private String m_keystoreAlias;
 	private String m_outEncPassFile;
@@ -93,7 +93,7 @@ public class PasswordFileEncryption {
 		// get keystore properties
 		m_keystoreFile = System.getProperty(JSSEConstants.KEYSTORE_PROPERTY,
 				DEFAULT_KEYSTORE_FILE);
-		m_kestorePass = System.getProperty(JSSEConstants.KEYSTORE_PASSWORD_PROPERTY,
+		m_keystorePass = System.getProperty(JSSEConstants.KEYSTORE_PASSWORD_PROPERTY,
 				"");
 		m_keystoreType = System.getProperty(JSSEConstants.KEYSTORE_TYPE_PROPERTY,
 				DEFAULT_KEYSTORE_TYPE);
@@ -199,14 +199,14 @@ public class PasswordFileEncryption {
 		// load keystore file
 		FileInputStream in = new FileInputStream(m_keystoreFile);
 		m_keyStore = KeyStore.getInstance(m_keystoreType);
-		m_keyStore.load(in, m_kestorePass.toCharArray());
+		m_keyStore.load(in, m_keystorePass.toCharArray());
 	}
 	
 	// get key pair
 	public void getKeyPair() throws Exception {
 		// get private key
 		PrivateKey privateKey = (PrivateKey) m_keyStore.getKey(
-				m_keystoreAlias, m_kestorePass.toCharArray());
+				m_keystoreAlias, m_keystorePass.toCharArray());
 		Certificate certificate = m_keyStore.getCertificate(m_keystoreAlias);
 		PublicKey publicKey = certificate.getPublicKey();
 		m_keyPair = new KeyPair(publicKey, privateKey);
@@ -234,13 +234,15 @@ public class PasswordFileEncryption {
 		// initialize secure random for salting
 		SecureRandom rng = SecureRandom.getInstance(DEFAULT_SECURE_RANDOM_ALGORITHM);
 		byte[] randSalt = new byte[4];
+		String encSalt;
 		// create salty data
 		for (String key: data.keySet()) {
 			rng.nextBytes(randSalt);
+			encSalt = encoder.encode(randSalt).replaceAll("\\n|\\r", "");
 			saltyData.put(
 					key,
 					new Pair<String,String>(
-							encoder.encode(randSalt).replaceAll("\\n|\\r", ""),
+							encSalt,
 							data.get(key)));
 		}
 		return saltyData;
@@ -252,21 +254,16 @@ public class PasswordFileEncryption {
 		MessageDigest digest = MessageDigest.getInstance(DEFAULT_HASH_ALGORITHM);
 		Pair<String,String> value;
 		byte[] salt;
-		byte[] pass;
-		byte[] saltAndPass;
+		//byte[] pass;
+		//byte[] saltAndPass;
 		byte[] hash;
 		for (String key: saltyData.keySet()) {
 			value = saltyData.get(key);
 			salt = decoder.decodeBuffer(value.first);
-			pass = value.second.getBytes();
-			saltAndPass = new byte[salt.length + pass.length];
-			int i = 0;
-			for (; i < salt.length; i++)
-				saltAndPass[i] = salt[i];
-			for (; i < salt.length + pass.length; i++)
-				saltAndPass[i] = pass[i - salt.length];
-			hash = digest.digest(saltAndPass);
-			value.second = encoder.encode(hash).replaceAll("\\n|\\r", "");
+			digest.reset();
+			digest.update(salt);
+			hash = digest.digest(value.second.getBytes());
+			value.second = encoder.encode(hash);
 		}
 	}
 	
@@ -325,20 +322,17 @@ public class PasswordFileEncryption {
 		// create hash with input password
 		Pair<String,String> value = saltedHashedData.get(username);
 		byte[] salt = decoder.decodeBuffer(value.first);
-		byte[] inputPassBytes = password.getBytes();
-		byte[] saltedInputPassBytes = new byte[salt.length + inputPassBytes.length];
-		int i = 0;
-		for (; i < salt.length; i++)
-			saltedInputPassBytes[i] = salt[i];
-		for (; i < salt.length + inputPassBytes.length; i++)
-			saltedInputPassBytes[i] = inputPassBytes[i - salt.length];
+		MessageDigest digest = MessageDigest.getInstance(DEFAULT_HASH_ALGORITHM);
+		digest.update(salt);
+		byte[] hash = digest.digest(password.getBytes());
 		byte[] originalHash = decoder.decodeBuffer(value.second);
-		return Arrays.equals(saltedInputPassBytes, originalHash);
+		return Arrays.equals(hash, originalHash);
 	}
 	
 	
 	// for holding pairs
-	public static class Pair<T,E> {
+	public static class Pair<T,E> implements Serializable {
+		private static final long serialVersionUID = -3543924095447249672L;
 		protected T first;
 		protected E second;
 		
