@@ -133,6 +133,8 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 			keyStore = null;
 		}
 		
+		// start forgery - create new self-signed valid certificate
+
 		// get stored certificate
 		iaik.x509.X509Certificate storedCert =
 				new iaik.x509.X509Certificate(keyStore.getCertificate(keyStoreAlias).getEncoded());
@@ -140,8 +142,6 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 		PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyStoreAlias, keyStorePassword);
 		PublicKey publicKey = storedCert.getPublicKey();
 		
-		// start forgery - create new self-signed valid certificate
-		// with the remote CN and serial
 		iaik.x509.X509Certificate forgedCert = new iaik.x509.X509Certificate();
 		// name
 		Name name = new Name();
@@ -157,13 +157,13 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 		forgedCert.setValidNotBefore(calInst.getTime());
 		calInst.add(Calendar.YEAR,2);
 		forgedCert.setValidNotAfter(calInst.getTime());
-		
+
 		// sign certificate
 		forgedCert.setPublicKey(publicKey);
 		forgedCert.sign(DEFAULT_SIGNATURE_ALGORITHM, privateKey);
 		
 		// update certificate and key entries in keystore
-		keyStore.setCertificateEntry(keyStoreAlias, forgedCert);
+		//keyStore.setCertificateEntry(keyStoreAlias, forgedCert);
 		keyStore.setKeyEntry(
 				keyStoreAlias,
 				privateKey,
