@@ -109,7 +109,7 @@ class MITMAdminServer implements Runnable
 		scan.close();
 		String dec = null;
 		try {
-			dec = PasswordFileEncryption.decrypt(ciphertext);
+			dec = PasswordFileEncryption2.decrypt(ciphertext);
 		} catch (Exception e) {
 			System.err.println("Failed decrypting the ciphertext: " + ciphertext);
 			e.printStackTrace();
@@ -117,10 +117,10 @@ class MITMAdminServer implements Runnable
 		}
 		
 		// hash given username and password and compare to decrypted value
-		String input = username + PasswordFileEncryption.DELIMETER + password;
+		String input = username + PasswordFileEncryption2.DELIMETER + password;
 		String hash = null;
 		try {
-			hash = PasswordFileEncryption.hash(input);
+			hash = PasswordFileEncryption2.hash(input);
 		} catch (Exception e) {
 			System.err.println("Failed hashing the given username/password: " + username + "/" + password);
 			e.printStackTrace();

@@ -97,7 +97,7 @@ public class MITMProxyServer
 					// <username> <password>
 					// (i.e. one space as delimeter)
 					String plaintextPasswordFile = args[++i];
-					PasswordFileEncryption pfe = new PasswordFileEncryption(new String[] {
+					PasswordFileEncryption2 pfe = new PasswordFileEncryption2(new String[] {
 							"-input=" + plaintextPasswordFile,
 							"-output=" + plaintextPasswordFile + ".enc"
 					});
