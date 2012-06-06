@@ -6,7 +6,6 @@ package mitm;
 
 import java.net.*;
 import java.io.*;
-import java.util.*;
 import java.util.regex.*;
 
 import javax.net.ssl.SSLServerSocket;
@@ -95,7 +94,9 @@ class MITMAdminServer implements Runnable
 	// *** START *** TODO
 	// added method for user authentication
 	private boolean authenticate(String userName, String password) {
-		// TODO ******************************************************************   write authentication   ******************************************************************************
+		
+		// ******************************************************************** TODO *****************************************************************************************
+		
 		return true;
 	}
 	
