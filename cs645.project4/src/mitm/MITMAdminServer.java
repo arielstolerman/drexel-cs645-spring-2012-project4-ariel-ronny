@@ -52,9 +52,6 @@ class MITMAdminServer implements Runnable
 						new BufferedInputStream(m_socket.getInputStream(),
 								buffer.length);
 				
-				PrintWriter socketWriter =
-						new PrintWriter(m_socket.getOutputStream()); //TODO socket output-stream for messages
-				
 				// Read a buffer full.
 				int bytesRead = in.read(buffer);
 
@@ -72,7 +69,7 @@ class MITMAdminServer implements Runnable
 					// if authenticated, do the command
 					boolean authenticated = authenticate(userName, password);
 					if( authenticated ) {
-						socketWriter.println(ADSERV_PREFIX + "User " + userName + " authenticated"); // TODO added message
+						System.out.println(ADSERV_PREFIX + "User " + userName + " authenticated"); // TODO added message
 						String command = userPwdMatcher.group(3);
 						//String commonName = userPwdMatcher.group(4); - unused
 
@@ -82,11 +79,10 @@ class MITMAdminServer implements Runnable
 
 					else {
 						// report authentication failed
-						socketWriter.println(ADSERV_PREFIX + "Authentication failed for user " + userName);
+						System.out.println(ADSERV_PREFIX + "Authentication failed for user " + userName);
 						// close socket
 						m_socket.close();
 					}
-					socketWriter.close();
 
 					// *** END ***
 				}	
@@ -116,25 +112,23 @@ class MITMAdminServer implements Runnable
 	// implemented the doCommand method
 	private void doCommand( String cmd ) throws IOException {	
 		cmd = cmd.toLowerCase();
-		PrintWriter socketWriter = new PrintWriter(m_socket.getOutputStream());
 		
 		// iterate over possible commands
 		if (cmd.equals("shutdown")) {
 			// shutdown MITM server
-			socketWriter.println(ADSERV_PREFIX + "Shutting down MITM server");
+			System.out.println(ADSERV_PREFIX + "Shutting down MITM server");
 			m_engine.shutdown();
 		}
 		else if (cmd.equals("stats")) {
 			// List how many requests were proxied
-			socketWriter.println(ADSERV_PREFIX + "Proxied requests: " +
+			System.out.println(ADSERV_PREFIX + "Proxied requests: " +
 					m_engine.getProxiedRequestsCount());
 			
 		}
 		else {
-			socketWriter.println(ADSERV_PREFIX + "Unrecognized command: " + cmd);
+			System.out.println(ADSERV_PREFIX + "Unrecognized command: " + cmd);
 		}
 		
-		socketWriter.close();
 		m_socket.close();
 	}
 	// *** END ***
