@@ -6,7 +6,6 @@ package mitm;
 
 import java.net.*;
 import java.io.*;
-import java.util.Scanner;
 import java.util.regex.*;
 
 import javax.net.ssl.SSLServerSocket;
