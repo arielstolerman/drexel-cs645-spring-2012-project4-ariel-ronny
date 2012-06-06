@@ -3,6 +3,11 @@
 
 package mitm;
 
+import iaik.asn1.ObjectID;
+import iaik.asn1.structures.AlgorithmID;
+import iaik.asn1.structures.Name;
+import iaik.asn1.structures.RDN;
+
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -15,14 +20,15 @@ import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Calendar;
+
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import java.math.BigInteger;
 
 
@@ -35,6 +41,9 @@ import java.math.BigInteger;
  */
 public final class MITMSSLSocketFactory implements MITMSocketFactory
 {
+	//TODO added signature algorithm for forgery
+	private static final AlgorithmID DEFAULT_SIGNATURE_ALGORITHM = AlgorithmID.sha512WithRSAEncryption;
+	
 	final ServerSocketFactory m_serverSocketFactory;
 	final SocketFactory m_clientSocketFactory;
 	final SSLContext m_sslContext;
@@ -111,6 +120,7 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 		final String keyStoreFile = System.getProperty(JSSEConstants.KEYSTORE_PROPERTY);
 		final char[] keyStorePassword = System.getProperty(JSSEConstants.KEYSTORE_PASSWORD_PROPERTY, "").toCharArray();
 		final String keyStoreType = System.getProperty(JSSEConstants.KEYSTORE_TYPE_PROPERTY, "jks");
+		final String keyStoreAlias = System.getProperty(JSSEConstants.KEYSTORE_ALIAS_PROPERTY, JSSEConstants.DEFAULT_ALIAS);
 
 		final KeyStore keyStore;
 
@@ -123,8 +133,42 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 			keyStore = null;
 		}
 		
-		// start forgery
+		// get stored certificate
+		iaik.x509.X509Certificate storedCert =
+				new iaik.x509.X509Certificate(keyStore.getCertificate(keyStoreAlias).getEncoded());
+		// get private and public keys
+		PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyStoreAlias, keyStorePassword);
+		PublicKey publicKey = storedCert.getPublicKey();
 		
+		// start forgery - create new self-signed valid certificate
+		// with the remote CN and serial
+		iaik.x509.X509Certificate forgedCert = new iaik.x509.X509Certificate();
+		// name
+		Name name = new Name();
+		RDN rdn = new RDN(ObjectID.commonName, remoteCN);
+		name.addRDN(rdn);
+		forgedCert.setSubjectDN(name);
+		// serial number
+		forgedCert.setSerialNumber(serialno);
+		// set stored certificate as issuer
+		forgedCert.setIssuerDN(storedCert.getIssuerDN());
+		// validity - timestamp from now to 2 years ahead
+		Calendar calInst = Calendar.getInstance();
+		forgedCert.setValidNotBefore(calInst.getTime());
+		calInst.add(Calendar.YEAR,2);
+		forgedCert.setValidNotAfter(calInst.getTime());
+		
+		// sign certificate
+		forgedCert.setPublicKey(publicKey);
+		forgedCert.sign(DEFAULT_SIGNATURE_ALGORITHM, privateKey);
+		
+		// update certificate and key entries in keystore
+		keyStore.setCertificateEntry(keyStoreAlias, forgedCert);
+		keyStore.setKeyEntry(
+				keyStoreAlias,
+				privateKey,
+				keyStorePassword,
+				new Certificate[] {forgedCert});
 		
 		// update keystore
 		keyManagerFactory.init(keyStore, keyStorePassword);
