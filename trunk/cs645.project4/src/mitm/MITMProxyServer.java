@@ -64,7 +64,7 @@ public class MITMProxyServer
 		String localHost = "localhost";
 
 		int timeout = 0; 
-		String filename = null;
+		//String filename = null; - unused
 
 		try {
 			for (int i=0; i<args.length; i++)
@@ -88,7 +88,23 @@ public class MITMProxyServer
 				} else if (args[i].equals("-timeout")) {
 					timeout = Integer.parseInt(args[++i]) * 1000;
 				} else if( args[i].equals("-pwdFile")) {
-					i++; // TODO parse this as needed
+					
+					// *** START *** TODO
+					
+					// create encrypted password file
+					// Format:
+					// should contain only one line of the form:
+					// <username> <password>
+					// (i.e. one space as delimeter)
+					String plaintextPasswordFile = args[++i];
+					PasswordFileEncryption pfe = new PasswordFileEncryption(new String[] {
+							"-input=" + plaintextPasswordFile,
+							"-output=" + plaintextPasswordFile + ".enc"
+					});
+					pfe.run();
+					
+					// *** END ***
+					
 				} else if (args[i].equals("-adminPort")) {
 					adminPort = Integer.parseInt(args[++i]);
 				} else if (args[i].equals("-outputFile")) {
