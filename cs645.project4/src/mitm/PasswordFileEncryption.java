@@ -329,6 +329,22 @@ public class PasswordFileEncryption {
 		return Arrays.equals(hash, originalHash);
 	}
 	
+	// the entire authentication process from the file
+	public boolean authenticate(String username, String password,
+			String encPassFile) throws Exception {
+		// read from file
+		Scanner scan = new Scanner(new File(encPassFile));
+		String ciphertext = "";
+		while (scan.hasNext())
+			ciphertext += scan.next();
+		// decrypt
+		byte[] plainBytes = decrypt(ciphertext);
+		// convert to map
+		Map<String,Pair<String,String>> saltedHashedData =
+				(HashMap<String,Pair<String,String>>) toObject(plainBytes);
+		return authenticate(username, password, saltedHashedData);
+	}
+	
 	
 	// for holding pairs
 	public static class Pair<T,E> implements Serializable {
