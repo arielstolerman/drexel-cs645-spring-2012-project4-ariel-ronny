@@ -177,6 +177,19 @@ public class PasswordFileEncryption {
 			e.printStackTrace();
 			System.exit(0);
 		}
+		
+		// === TEST ===
+		try {
+			byte[] decrypted = decrypt(encrypted);
+			Map<String, Pair<String,String>> decryptedMap = (HashMap<String, Pair<String,String>>) toObject(decrypted);
+			boolean authenticated;
+			for (String user: data.keySet()) {
+				authenticated = authenticate(user, data.get(user), decryptedMap);
+				System.out.println("User " + user + " authentication: " + authenticated);
+			}
+		} catch (Exception e) {
+			
+		}
 	}
 	
 	// keystore loader
@@ -283,6 +296,46 @@ public class PasswordFileEncryption {
 		bw.flush();
 		bw.close();
 	}
+	
+	// ==========   REVERSE   ============
+	
+	// decrypt back to serializable map
+	public byte[] decrypt(String ciphertext) throws Exception {
+		Cipher cipher = Cipher.getInstance(DEFAULT_ENC_ALGORITHM);
+		cipher.init(Cipher.DECRYPT_MODE, m_keyPair.getPrivate());
+		return cipher.doFinal(decoder.decodeBuffer(ciphertext));
+	}
+	
+	// convert back to Object
+	public Object toObject(byte[] bytes) throws Exception {
+		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+		ObjectInput in = new ObjectInputStream(bis);
+		Object o = in.readObject(); 
+		bis.close();
+		in.close();
+		return o;
+	}
+	
+	// authenticates input user/pass
+	public boolean authenticate(String username, String password,
+			Map<String,Pair<String,String>> saltedHashedData) throws Exception {
+		// username not found
+		if (!saltedHashedData.containsKey(username))
+			return false;
+		// create hash with input password
+		Pair<String,String> value = saltedHashedData.get(username);
+		byte[] salt = decoder.decodeBuffer(value.first);
+		byte[] inputPassBytes = password.getBytes();
+		byte[] saltedInputPassBytes = new byte[salt.length + inputPassBytes.length];
+		int i = 0;
+		for (; i < salt.length; i++)
+			saltedInputPassBytes[i] = salt[i];
+		for (; i < salt.length + inputPassBytes.length; i++)
+			saltedInputPassBytes[i] = inputPassBytes[i - salt.length];
+		byte[] originalHash = decoder.decodeBuffer(value.second);
+		return Arrays.equals(saltedInputPassBytes, originalHash);
+	}
+	
 	
 	// for holding pairs
 	public static class Pair<T,E> {
