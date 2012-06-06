@@ -7,4 +7,7 @@ public interface JSSEConstants
 	public final static String KEYSTORE_TYPE_PROPERTY =		"javax.net.ssl.keyStoreType";
 	public final static String KEYSTORE_ALIAS_PROPERTY =	"javax.net.ssl.keyStoreAlias";
 	public final static String DEFAULT_ALIAS = 				"mykey";
+	
+	public final static String PLAINTEXT_PASSWORD_FILE =	"plaintext.password.file";
+	public final static String CIPHERTEXT_PASSWORD_FILE =	"ciphertext.password.file";
 }

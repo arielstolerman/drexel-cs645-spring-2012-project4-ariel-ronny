@@ -19,27 +19,22 @@ import javax.crypto.spec.SecretKeySpec;
 public class PasswordFileEncryption implements Runnable {
 	
 	// default files
-	// plaintext file format (header is disregarded)
-	// USERNAME SALT PASSWORD
-	// <username1> <salt1> <password1>
-	// ...
-	// <usernameN> <saltN> <passwordN>
-	private static final String DEFAULT_IN_PASSWORD_PLAIN_FILE = "./mitm_admin_password_plain.txt";
-	private static final String DEFAULT_OUT_PASSWORD_ENC_FILE = "./mitm_admin_password_encrypted.txt";
-	private static final String DELIMETER = " ";
+	public static final String DEFAULT_IN_PASSWORD_PLAIN_FILE = "./mitm_admin_password.txt";
+	public static final String DEFAULT_OUT_PASSWORD_ENC_FILE = "./mitm_admin_password.txt.enc";
+	public static final String DELIMETER = " ";
 	
 	// cryptography constants
-	private static final String ENC_ALGORITHM = "AES";
-	private static final byte[] ENC_SECRET_KEY = "RonnyAndAriel!!!".getBytes();
-	private static final int ENC_NUM_ITERATIONS = 3;
-	private static final String ENC_SALT = "MmmSalty";
+	public static final String ENC_ALGORITHM = "AES";
+	public static final byte[] ENC_SECRET_KEY = "RonnyAndAriel!!!".getBytes();
+	public static final int ENC_NUM_ITERATIONS = 3;
+	public static final String ENC_SALT = "MmmSalty";
 	
-	private static final String HMAC_ALGORITHM = "HmacSHA1";
-	private static final byte[] HMAC_SECRET_KEY = "CS645-Forever!!!".getBytes();
+	public static final String HMAC_ALGORITHM = "HmacSHA1";
+	public static final byte[] HMAC_SECRET_KEY = "CS645-Forever!!!".getBytes();
 
-	private static final String HASH_ALGORITHM = "SHA-1";
-	private static final int HASH_NUM_ITERATIONS = 30;
-	private static final String HASH_SALT = "ImSecure";
+	public static final String HASH_ALGORITHM = "SHA-1";
+	public static final int HASH_NUM_ITERATIONS = 30;
+	public static final String HASH_SALT = "ImSecure";
 	
 	// actual input / output files
 	private String m_inputFilePath = DEFAULT_IN_PASSWORD_PLAIN_FILE;
@@ -76,6 +71,8 @@ public class PasswordFileEncryption implements Runnable {
 			else
 				m_outputFilePath = opArr[1];
 		}
+		System.setProperty(JSSEConstants.PLAINTEXT_PASSWORD_FILE, m_inputFilePath);
+		System.setProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE, m_outputFilePath);
 	}
 	
 	// usage
@@ -243,36 +240,8 @@ public class PasswordFileEncryption implements Runnable {
 	}
 	
 	// Key generation
-	private static Key genKey(byte[] secretKey, String algorithm) throws Exception {
+	public static Key genKey(byte[] secretKey, String algorithm) throws Exception {
 		Key key = new SecretKeySpec(secretKey, algorithm);
 		return key;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

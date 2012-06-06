@@ -6,6 +6,7 @@ package mitm;
 
 import java.net.*;
 import java.io.*;
+import java.util.Scanner;
 import java.util.regex.*;
 
 import javax.net.ssl.SSLServerSocket;
@@ -93,11 +94,40 @@ class MITMAdminServer implements Runnable
 
 	// *** START *** TODO
 	// added method for user authentication
-	private boolean authenticate(String userName, String password) {
+	private boolean authenticate(String username, String password) {
+		// decrypt admin password file
+		Scanner scan = null;
+		String encPasswordFile = System.getProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE);
+		try {
+			scan = new Scanner(new File(encPasswordFile));
+		} catch (FileNotFoundException e) {
+			System.err.println("Failed opening encrypted password file: " + encPasswordFile);
+			e.printStackTrace();
+			return false;
+		}
+		String ciphertext = scan.nextLine();
+		scan.close();
+		String dec = null;
+		try {
+			dec = PasswordFileEncryption.decrypt(ciphertext);
+		} catch (Exception e) {
+			System.err.println("Failed decrypting the ciphertext: " + ciphertext);
+			e.printStackTrace();
+			return false;
+		}
 		
-		// ******************************************************************** TODO *****************************************************************************************
+		// hash given username and password and compare to decrypted value
+		String input = username + PasswordFileEncryption.DELIMETER + password;
+		String hash = null;
+		try {
+			hash = PasswordFileEncryption.hash(input);
+		} catch (Exception e) {
+			System.err.println("Failed hashing the given username/password: " + username + "/" + password);
+			e.printStackTrace();
+			return false;
+		}
 		
-		return true;
+		return hash != null && dec != null && hash.equals(dec);
 	}
 	
 	// implemented the doCommand method
