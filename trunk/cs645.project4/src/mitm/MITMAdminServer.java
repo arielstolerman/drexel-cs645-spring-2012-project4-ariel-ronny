@@ -6,6 +6,7 @@ package mitm;
 
 import java.net.*;
 import java.io.*;
+import java.security.GeneralSecurityException;
 import java.util.regex.*;
 
 import javax.net.ssl.SSLServerSocket;
@@ -23,10 +24,17 @@ class MITMAdminServer implements Runnable
 	private HTTPSProxyEngine m_engine;
 
 	public MITMAdminServer( String localHost, int adminPort, HTTPSProxyEngine engine ) throws IOException {
-		MITMPlainSocketFactory socketFactory =
-				new MITMPlainSocketFactory();
-		m_serverSocket = (SSLServerSocket) socketFactory.createServerSocket( localHost, adminPort, 0 ); //TODO added casting to SSLServerSocket
-		m_engine = engine;
+		// *** START ***
+		// changed to SSLSocketFactory
+		try {
+			MITMSSLSocketFactory socketFactory = new MITMSSLSocketFactory();
+			m_serverSocket = (SSLServerSocket) socketFactory.createServerSocket( localHost, adminPort, 0 );
+			m_engine = engine;
+		} catch (GeneralSecurityException e) {
+			System.err.println(ADSERV_PREFIX + "Failed to instantiate MITMSSLSocketFactory for MITMAdminServer");
+			e.printStackTrace();
+		}
+		// *** END ***
 	}
 
 	public void run() {
