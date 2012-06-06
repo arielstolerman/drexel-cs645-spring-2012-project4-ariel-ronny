@@ -87,9 +87,9 @@ public class PasswordFileEncryption implements Runnable {
 		System.exit(0);
 	}
 	
+	
 	/* ================================================
 	 * main code to encrypt the plaintext password file
-	 * @see java.lang.Runnable#run()
 	 * ================================================
 	 */
 	public void run() {
