@@ -93,6 +93,10 @@ public class PasswordFileEncryption implements Runnable {
 	 * ================================================
 	 */
 	public void run() {
+		System.out.println("Input (plaintext) password file:   " + m_inputFilePath);
+		System.out.println("Output (ciphertext) password file: " + m_outputFilePath);
+		System.out.println();
+		
 		// read the plaintext password file and extract
 		// user, salt and password
 		Scanner scan = null;
