@@ -5,12 +5,14 @@ import java.security.*;
 import java.util.*;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
  * CS645 Project 4<br>
  * Encrypted password file generator - encryption and decryption using
  * AES, secret key, salt and iterations.<br>
+ * TODO add more description
  * Based on {@link http://www.digizol.org/2009/10/java-encrypt-decrypt-jce-salt.html}
  */
 @SuppressWarnings("restriction")
@@ -22,19 +24,22 @@ public class PasswordFileEncryption implements Runnable {
 	// <username1> <salt1> <password1>
 	// ...
 	// <usernameN> <saltN> <passwordN>
-	private static final String DEFAULT_IN_PASSWORD_PLAIN_FILE = "./mitm_admin_passwords_plain.txt";
-	private static final String DEFAULT_OUT_PASSWORD_ENC_FILE = "./mitm_admin_passwords_encrypted.txt";
+	private static final String DEFAULT_IN_PASSWORD_PLAIN_FILE = "./mitm_admin_password_plain.txt";
+	private static final String DEFAULT_OUT_PASSWORD_ENC_FILE = "./mitm_admin_password_encrypted.txt";
 	private static final String DELIMETER = " ";
 	
-	// cryptography definitions
-	private static final String ALGORITHM = "AES";			// AES
-	private static final byte[] SECRET_KEY = new byte[] {	// 128 bit key
-		(byte) 0x98, (byte) 0xfe, (byte) 0x21, (byte) 0x76,
-		(byte) 0xca, (byte) 0xd6, (byte) 0x45, (byte) 0x4b,
-		(byte) 0xb6, (byte) 0x01, (byte) 0xf2, (byte) 0xe9,
-		(byte) 0x3e, (byte) 0x1d, (byte) 0x74, (byte) 0x84
-	};
-	private static final int NUM_ITERATIONS = 3;			// iterations
+	// cryptography constants
+	private static final String ENC_ALGORITHM = "AES";
+	private static final byte[] ENC_SECRET_KEY = "RonnyAndAriel!!!".getBytes();
+	private static final int ENC_NUM_ITERATIONS = 3;
+	private static final String ENC_SALT = "MmmSalty";
+	
+	private static final String HMAC_ALGORITHM = "HmacSHA1";
+	private static final byte[] HMAC_SECRET_KEY = "CS645-Forever!!!".getBytes();
+
+	private static final String HASH_ALGORITHM = "SHA-1";
+	private static final int HASH_NUM_ITERATIONS = 30;
+	private static final String HASH_SALT = "ImSecure";
 	
 	// actual input / output files
 	private String m_inputFilePath = DEFAULT_IN_PASSWORD_PLAIN_FILE;
@@ -95,10 +100,19 @@ public class PasswordFileEncryption implements Runnable {
 	public void run() {
 		System.out.println("Input (plaintext) password file:   " + m_inputFilePath);
 		System.out.println("Output (ciphertext) password file: " + m_outputFilePath);
+		System.out.println("Encryption algorithm:              " + ENC_ALGORITHM);
+		System.out.println("Encryption secret-key:             " + new String(ENC_SECRET_KEY));
+		System.out.println("Encryption number of iterations:   " + ENC_NUM_ITERATIONS);
+		System.out.println("Encryption salt:                   " + ENC_SALT);
+		System.out.println("HMAC algorithm:                    " + HMAC_ALGORITHM);
+		System.out.println("HMAC secret-key:                   " + new String(HMAC_SECRET_KEY));
+		System.out.println("Hash algorithm:                    " + HASH_ALGORITHM);
+		System.out.println("Hash number of iterations:         " + HASH_NUM_ITERATIONS);
+		System.out.println("Hash salt:                         " + HASH_SALT);
 		System.out.println();
 		
 		// read the plaintext password file and extract
-		// user, salt and password
+		// user and password
 		Scanner scan = null;
 		try {
 			scan = new Scanner(new FileReader(m_inputFilePath));
@@ -110,56 +124,40 @@ public class PasswordFileEncryption implements Runnable {
 			System.exit(0);
 		}
 		// skip header line
-		scan.nextLine();
-		// read all entries
-		List<String[]> data = new ArrayList<String[]>();
-		while (scan.hasNext())
-			data.add(scan.nextLine().split(DELIMETER));
+		String plaintext = scan.nextLine();
 		scan.close();
+		System.out.println("Plaintext:  " + plaintext);
 		
-		// create encrypted passwords data
-		String[] entry;
-		String enc = null;
-		String dec = null;
-		for (int i = 0; i < data.size(); i++) {
-			entry = data.get(i);
-			System.out.println("Entry " + (i + 1) + ":");
-			System.out.println("> username:           " + entry[0]);
-			System.out.println("> salt:               " + entry[1]);
-			System.out.println("> password:           " + entry[2]);
-			try {
-				enc = encrypt(entry[2], entry[1]);
-			} catch (Exception e) {
-				System.err.println("Error occurred during encryption.");
-				e.printStackTrace();
-				System.exit(0);
-			}
-			System.out.println("> encrypted password: " + enc);
-			try {
-				dec = decrypt(enc, entry[1]);
-			} catch (Exception e) {
-				System.err.println("Error occurred during decryption.");
-				e.printStackTrace();
-				System.exit(0);
-			}
-			System.out.println("> decrypted password: " + dec);
-			System.out.println();
-			entry[2] = enc;
+		// hash
+		String hash = null;
+		try {
+			hash = hash(plaintext);
+		} catch (Exception e) {
+			System.err.println(
+					"Error during hashing of plaintext: " + plaintext + "\n" +
+					"Exiting.");
+			e.printStackTrace();
+			System.exit(0);
 		}
+		System.out.println("Hash:       " + hash);
+		
+		// encrypt
+		String ciphertext = null;
+		try {
+			ciphertext = encrypt(hash);
+		} catch (Exception e) {
+			System.err.println(
+					"Error during encryption of hash: " + hash + "\n" +
+					"Exiting.");
+			e.printStackTrace();
+			System.exit(0);
+		}
+		System.out.println("Ciphertext: " + ciphertext);
 		
 		// write to output file
 		try {
 			PrintWriter outWriter = new PrintWriter(new File(m_outputFilePath));
-			// write header
-			outWriter.println("USER SALT ENCRYPTED_PASSWORD");
-			// write data
-			for (int i = 0; i < data.size(); i++) {
-				entry = data.get(i);
-				outWriter.println(
-						entry[0] + DELIMETER +
-						entry[1] + DELIMETER +
-						entry[2]);
-			}
+			outWriter.println(ciphertext);
 			outWriter.flush();
 			outWriter.close();
 			
@@ -170,6 +168,18 @@ public class PasswordFileEncryption implements Runnable {
 			e.printStackTrace();
 			System.exit(0);
 		}
+		
+		String dec = null;
+		try {
+			dec = decrypt(ciphertext);
+		} catch (Exception e) {
+			System.err.println(
+					"Error during decryption of ciphertext: " + ciphertext + "\n" +
+					"Exiting.");
+			e.printStackTrace();
+			System.exit(0);
+		}
+		System.out.println("Decryption process correctness: " + dec.equals(hash));
 	}
 	
 	
@@ -178,37 +188,54 @@ public class PasswordFileEncryption implements Runnable {
 	 * =========
 	 */
 	
+	// Hash with salt and iterations + Hmac
+	public static String hash(String plaintext) throws Exception {
+		byte[] bytes = (HASH_SALT + plaintext).getBytes();
+		// hash
+		MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
+		for (int i = 0; i < HASH_NUM_ITERATIONS; i++) {
+			digest.reset();
+			bytes = digest.digest(bytes);
+		}
+		// hmac
+		Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+		Key key = genKey(HMAC_SECRET_KEY,HMAC_ALGORITHM);
+		mac.init(key);
+		sun.misc.BASE64Encoder encoder = new sun.misc.BASE64Encoder();
+		return encoder.encode(mac.doFinal(bytes)).replaceAll("\\r|\\n", "");
+	}
+	
 	// Encryption with salt and iterations
-	public static String encrypt(String plaintext, String salt) throws Exception {
+	public static String encrypt(String plaintext) throws Exception {
 		// initialization
-		Key key = genKey();
-		Cipher cipher = Cipher.getInstance(ALGORITHM);
+		Key key = genKey(ENC_SECRET_KEY, ENC_ALGORITHM);
+		Cipher cipher = Cipher.getInstance(ENC_ALGORITHM);
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 		
 		// encryption with salt and iterations
 		byte[] encryptedBytes;
 		String ciphertext = plaintext;
 		sun.misc.BASE64Encoder encoder = new sun.misc.BASE64Encoder();
-		for (int i = 0; i < NUM_ITERATIONS; i++) {
-			encryptedBytes = cipher.doFinal((salt + ciphertext).getBytes());
+		for (int i = 0; i < ENC_NUM_ITERATIONS; i++) {
+			encryptedBytes = cipher.doFinal((ENC_SALT + ciphertext).getBytes());
 			ciphertext = encoder.encode(encryptedBytes);
 		}
 		return ciphertext.replaceAll("\\r|\\n", "");
 	}
 	
 	// Decryption with salt and iterations
-	public static String decrypt(String ciphertext, String salt) throws Exception {
+	public static String decrypt(String ciphertext) throws Exception {
 		// initialization
-		Key key = genKey();
-		Cipher cipher = Cipher.getInstance(ALGORITHM);
+		Key key = genKey(ENC_SECRET_KEY, ENC_ALGORITHM);
+		Cipher cipher = Cipher.getInstance(ENC_ALGORITHM);
 		cipher.init(Cipher.DECRYPT_MODE, key);
-		int saltLen = salt.length();
+		int saltLen = ENC_SALT.length();
 		
 		// decryption with salt and iterations
 		byte[] decryptedBytes;
 		String plaintext = ciphertext;
 		sun.misc.BASE64Decoder decoder = new sun.misc.BASE64Decoder();
-		for (int i = 0; i < NUM_ITERATIONS; i++) {
+		for (int i = 0; i < ENC_NUM_ITERATIONS; i++) {
 			decryptedBytes = cipher.doFinal(decoder.decodeBuffer(plaintext));
 			plaintext = new String(decryptedBytes).substring(saltLen);
 		}
@@ -216,8 +243,8 @@ public class PasswordFileEncryption implements Runnable {
 	}
 	
 	// Key generation
-	private static Key genKey() throws Exception {
-		Key key = new SecretKeySpec(SECRET_KEY, ALGORITHM);
+	private static Key genKey(byte[] secretKey, String algorithm) throws Exception {
+		Key key = new SecretKeySpec(secretKey, algorithm);
 		return key;
 	}
 }
