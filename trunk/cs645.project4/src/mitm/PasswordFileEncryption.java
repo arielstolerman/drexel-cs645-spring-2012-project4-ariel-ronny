@@ -2,246 +2,320 @@ package mitm;
 
 import java.io.*;
 import java.security.*;
+import java.security.cert.Certificate;
 import java.util.*;
 
 import javax.crypto.Cipher;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
-/**
- * CS645 Project 4<br>
- * Encrypted password file generator - encryption and decryption using
- * AES, secret key, salt and iterations.<br>
- * TODO add more description
- * Based on {@link http://www.digizol.org/2009/10/java-encrypt-decrypt-jce-salt.html}
+/*
+ * Keystore generated with:
+ * > keytool -genkey -alias mykey -keysize 2048 -keypass falafel4u -storetype JKS -keyalg RSA -keystore mitm_keystore -validity 365
  */
 @SuppressWarnings("restriction")
-public class PasswordFileEncryption implements Runnable {
-	
-	// default files
-	public static final String DEFAULT_IN_PASSWORD_PLAIN_FILE = "./mitm_admin_password.txt";
-	public static final String DEFAULT_OUT_PASSWORD_ENC_FILE = "./mitm_admin_password.txt.enc";
-	public static final String DELIMETER = " ";
-	
-	// cryptography constants
-	public static final String ENC_ALGORITHM = "AES";
-	public static final byte[] ENC_SECRET_KEY = "RonnyAndAriel!!!".getBytes();
-	public static final int ENC_NUM_ITERATIONS = 3;
-	public static final String ENC_SALT = "MmmSalty";
-	
-	public static final String HMAC_ALGORITHM = "HmacSHA1";
-	public static final byte[] HMAC_SECRET_KEY = "CS645-Forever!!!".getBytes();
+public class PasswordFileEncryption {
 
-	public static final String HASH_ALGORITHM = "SHA-1";
-	public static final int HASH_NUM_ITERATIONS = 30;
-	public static final String HASH_SALT = "ImSecure";
+	private static final int DEFAULT_KEYSIZE =		2048;
+	private static final String DEFAULT_ENC_ALGORITHM = "RSA";
+	private static final String DEFAULT_KEYSTORE_FILE = "AdminServerStore";
+	private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
+	private static final String PLAINTEXT_PASSWORD_FILE = "mitm_admin_passwords.txt";
+	private static final String DELIM = " ";
 	
-	// actual input / output files
-	private String m_inputFilePath = DEFAULT_IN_PASSWORD_PLAIN_FILE;
-	private String m_outputFilePath = DEFAULT_OUT_PASSWORD_ENC_FILE;
+	private static final String DEFAULT_SECURE_RANDOM_ALGORITHM = "SHA1PRNG";
+	private static final String DEFAULT_HASH_ALGORITHM = "SHA-1";
 	
-	/**
-	 * Entry point for password file encryption.
-	 * @param args
-	 */
+	private static final sun.misc.BASE64Encoder encoder = new sun.misc.BASE64Encoder();
+	private static final sun.misc.BASE64Decoder decoder = new sun.misc.BASE64Decoder();
+	
+	// main for password file creation
 	public static void main(String[] args) {
-		PasswordFileEncryption pfe = new PasswordFileEncryption(args);
-		pfe.run();
-	}
-	
-	// constructor with command line argument options
-	public PasswordFileEncryption(String[] options) {
-		String[] opArr;
-		for (String option: options) {
-			// check flag
-			opArr = option.split("=");
-			if (
-					opArr.length != 2 ||
-					(!opArr[0].equals("-input") && !opArr[0].equals("-output"))) {
-				System.err.println("Invalid flag: " + option);
-				printUsageAndExit();
+		// partially taken from MITMProxyServer:
+		boolean gotPassphrase = false;
+		try {
+			for (int i=0; i<args.length; i++)
+			{
+				if (args[i].equalsIgnoreCase("-keyStore")) {
+					System.setProperty(JSSEConstants.KEYSTORE_PROPERTY,
+							args[++i]);
+				} else if (args[i].equalsIgnoreCase("-keyStorePassword")) {
+					System.setProperty(
+							JSSEConstants.KEYSTORE_PASSWORD_PROPERTY,
+							args[++i]);
+					gotPassphrase = true;
+				} else if (args[i].equalsIgnoreCase("-keyStoreType")) {
+					System.setProperty(JSSEConstants.KEYSTORE_TYPE_PROPERTY,
+							args[++i]);
+				} else if (args[i].equalsIgnoreCase("-keyStoreAlias")) {
+					System.setProperty(JSSEConstants.KEYSTORE_ALIAS_PROPERTY,
+							args[++i]);
+				} else if( args[i].equalsIgnoreCase("-pwdFile")) {
+					System.setProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY,
+							args[++i]);
+				} else {
+					// bad usage
+					throw new Exception();
+				}
 			}
-			if (!(new File(opArr[1])).exists()) {
-				System.err.println("Invalid path: " + opArr[1]);
-				printUsageAndExit();
-			}
-			// set flag
-			if (opArr[0].equals("-input"))
-				m_inputFilePath = opArr[1];
-			else
-				m_outputFilePath = opArr[1];
+			if (!gotPassphrase)
+				throw new Exception();
+		} catch (Exception e) {
+			usageAndExit();
 		}
-		System.setProperty(JSSEConstants.PLAINTEXT_PASSWORD_FILE, m_inputFilePath);
-		System.setProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE, m_outputFilePath);
+		
+		new PasswordFileEncryption().run();
 	}
 	
-	// usage
-	public void printUsage() {
-		String usage = "Password file encryption usage:\n" +
-						"-input=<input-file-path>        default: " + DEFAULT_IN_PASSWORD_PLAIN_FILE + "\n" +
-						"-output=<output-file-path>      default: " + DEFAULT_OUT_PASSWORD_ENC_FILE + "\n" +
-						"\n";
-		System.out.println(usage);
+	// printing usage
+	public static void usageAndExit() {
+		System.err.println("Error! invalid arguments. Usage:\n" +
+						"[-keyStore <Keystore file>]                default: " + DEFAULT_KEYSTORE_FILE + "\n" +
+						"-keyStorePassword <passphrase>\n" +
+						"[-keyStoreType <keystore type>]            default: " + DEFAULT_KEYSTORE_TYPE + "\n" +
+						"[-keyStoreAlias <keystore alias>]          default: " + JSSEConstants.DEFAULT_ALIAS + "\n" +
+						"[-pwdFile <output encrypted password file> default: " + JSSEConstants.CIPHERTEXT_PASSWORD_FILE_DEFAULT + "\n"
+				);
+		
 	}
 	
-	public void printUsageAndExit() {
-		printUsage();
-		System.exit(0);
-	}
+	// constructor
+	public PasswordFileEncryption() {}
 	
+	private String m_keystoreFile;
+	private String m_kestorePass;
+	private String m_keystoreType;
+	private String m_keystoreAlias;
+	private String m_outEncPassFile;
 	
-	/* ================================================
-	 * main code to encrypt the plaintext password file
-	 * ================================================
-	 */
+	private KeyStore m_keyStore = null;
+	private KeyPair m_keyPair = null;
+	
 	public void run() {
-		System.out.println("Input (plaintext) password file:   " + m_inputFilePath);
-		System.out.println("Output (ciphertext) password file: " + m_outputFilePath);
-		System.out.println("Encryption algorithm:              " + ENC_ALGORITHM);
-		System.out.println("Encryption secret-key:             " + new String(ENC_SECRET_KEY));
-		System.out.println("Encryption number of iterations:   " + ENC_NUM_ITERATIONS);
-		System.out.println("Encryption salt:                   " + ENC_SALT);
-		System.out.println("HMAC algorithm:                    " + HMAC_ALGORITHM);
-		System.out.println("HMAC secret-key:                   " + new String(HMAC_SECRET_KEY));
-		System.out.println("Hash algorithm:                    " + HASH_ALGORITHM);
-		System.out.println("Hash number of iterations:         " + HASH_NUM_ITERATIONS);
-		System.out.println("Hash salt:                         " + HASH_SALT);
-		System.out.println();
+		// get keystore properties
+		m_keystoreFile = System.getProperty(JSSEConstants.KEYSTORE_PROPERTY,
+				DEFAULT_KEYSTORE_FILE);
+		m_kestorePass = System.getProperty(JSSEConstants.KEYSTORE_PASSWORD_PROPERTY,
+				"");
+		m_keystoreType = System.getProperty(JSSEConstants.KEYSTORE_TYPE_PROPERTY,
+				DEFAULT_KEYSTORE_TYPE);
+		m_keystoreAlias = System.getProperty(JSSEConstants.KEYSTORE_ALIAS_PROPERTY,
+				JSSEConstants.DEFAULT_ALIAS);
+		m_outEncPassFile = System.getProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY,
+				JSSEConstants.CIPHERTEXT_PASSWORD_FILE_DEFAULT);
 		
-		// read the plaintext password file and extract
-		// user and password
-		Scanner scan = null;
+		// load keystore
 		try {
-			scan = new Scanner(new FileReader(m_inputFilePath));
-		} catch (FileNotFoundException e) {
-			System.err.println(
-					"Error reading input file: " + m_inputFilePath + "\n" +
-					"Exiting.");
-			e.printStackTrace();
-			System.exit(0);
-		}
-		// skip header line
-		String plaintext = scan.nextLine();
-		scan.close();
-		System.out.println("Plaintext:  " + plaintext);
-		
-		// hash
-		String hash = null;
-		try {
-			hash = hash(plaintext);
+			loadKeyStore();
 		} catch (Exception e) {
-			System.err.println(
-					"Error during hashing of plaintext: " + plaintext + "\n" +
-					"Exiting.");
+			System.err.println("Error loading keystore.");
 			e.printStackTrace();
 			System.exit(0);
 		}
-		System.out.println("Hash:       " + hash);
 		
-		// encrypt
-		String ciphertext = null;
+		// get keypair
 		try {
-			ciphertext = encrypt(hash);
+			getKeyPair();
 		} catch (Exception e) {
-			System.err.println(
-					"Error during encryption of hash: " + hash + "\n" +
-					"Exiting.");
-			e.printStackTrace();
-			System.exit(0);
-		}
-		System.out.println("Ciphertext: " + ciphertext);
-		
-		// write to output file
-		try {
-			PrintWriter outWriter = new PrintWriter(new File(m_outputFilePath));
-			outWriter.println(ciphertext);
-			outWriter.flush();
-			outWriter.close();
-			
-		} catch (FileNotFoundException e) {
-			System.err.println(
-					"Error writing to output file: " + m_outputFilePath + "\n" +
-					"Exiting.");
+			System.err.println("Error retrieving key pair from keystore.");
 			e.printStackTrace();
 			System.exit(0);
 		}
 		
-		String dec = null;
+		// read plaintext file
+		Map<String, String> data = null;
 		try {
-			dec = decrypt(ciphertext);
+			data = readPlainFile();
 		} catch (Exception e) {
-			System.err.println(
-					"Error during decryption of ciphertext: " + ciphertext + "\n" +
-					"Exiting.");
+			System.err.println("Error reading plaintext password file " + PLAINTEXT_PASSWORD_FILE + ".");
 			e.printStackTrace();
 			System.exit(0);
 		}
-		System.out.println("Decryption process correctness: " + dec.equals(hash));
-	}
-	
-	
-	/* =========
-	 * Utilities
-	 * =========
-	 */
-	
-	// Hash with salt and iterations + Hmac
-	public static String hash(String plaintext) throws Exception {
-		byte[] bytes = (HASH_SALT + plaintext).getBytes();
-		// hash
-		MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
-		for (int i = 0; i < HASH_NUM_ITERATIONS; i++) {
-			digest.reset();
-			bytes = digest.digest(bytes);
-		}
-		// hmac
-		Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-		Key key = genKey(HMAC_SECRET_KEY,HMAC_ALGORITHM);
-		mac.init(key);
-		sun.misc.BASE64Encoder encoder = new sun.misc.BASE64Encoder();
-		return encoder.encode(mac.doFinal(bytes)).replaceAll("\\r|\\n", "");
-	}
-	
-	// Encryption with salt and iterations
-	public static String encrypt(String plaintext) throws Exception {
-		// initialization
-		Key key = genKey(ENC_SECRET_KEY, ENC_ALGORITHM);
-		Cipher cipher = Cipher.getInstance(ENC_ALGORITHM);
-		cipher.init(Cipher.ENCRYPT_MODE, key);
 		
-		// encryption with salt and iterations
-		byte[] encryptedBytes;
-		String ciphertext = plaintext;
-		sun.misc.BASE64Encoder encoder = new sun.misc.BASE64Encoder();
-		for (int i = 0; i < ENC_NUM_ITERATIONS; i++) {
-			encryptedBytes = cipher.doFinal((ENC_SALT + ciphertext).getBytes());
-			ciphertext = encoder.encode(encryptedBytes);
+		// add individual random salts to each user-pass pair
+		Map<String,Pair<String,String>> saltyData = null;
+		try {
+			saltyData = season(data);
+		} catch (Exception e) {
+			System.err.println("Error adding salts.");
+			e.printStackTrace();
+			System.exit(0);
 		}
-		return ciphertext.replaceAll("\\r|\\n", "");
-	}
-	
-	// Decryption with salt and iterations
-	public static String decrypt(String ciphertext) throws Exception {
-		// initialization
-		Key key = genKey(ENC_SECRET_KEY, ENC_ALGORITHM);
-		Cipher cipher = Cipher.getInstance(ENC_ALGORITHM);
-		cipher.init(Cipher.DECRYPT_MODE, key);
-		int saltLen = ENC_SALT.length();
 		
-		// decryption with salt and iterations
-		byte[] decryptedBytes;
-		String plaintext = ciphertext;
-		sun.misc.BASE64Decoder decoder = new sun.misc.BASE64Decoder();
-		for (int i = 0; i < ENC_NUM_ITERATIONS; i++) {
-			decryptedBytes = cipher.doFinal(decoder.decodeBuffer(plaintext));
-			plaintext = new String(decryptedBytes).substring(saltLen);
+		// hash passwords using salts
+		try {
+			hash(saltyData);
+		} catch (Exception e) {
+			System.err.println("Error hashing.");
+			e.printStackTrace();
+			System.exit(0);
 		}
-		return plaintext;
+		
+		// serialize map to stream of bytes
+		byte[] serialized = null;
+		try {
+			serialized = serializeToBytes(saltyData);
+		} catch (Exception e) {
+			System.err.println("Error serializing salted-hashed-map.");
+			e.printStackTrace();
+			System.exit(0);
+		}
+		
+		// encrypt with public key
+		String encrypted = null;
+		try {
+			encrypted = encrypt(serialized);
+		} catch (Exception e) {
+			System.err.println("Error encrypting serialized map.");
+			e.printStackTrace();
+			System.exit(0);
+		}
+		
+		// finally, write to output file
+		try {
+			writeToFile(encrypted);
+		} catch (Exception e) {
+			System.err.println("Failed writing encrypted file.");
+			e.printStackTrace();
+			System.exit(0);
+		}
 	}
 	
-	// Key generation
-	public static Key genKey(byte[] secretKey, String algorithm) throws Exception {
-		Key key = new SecretKeySpec(secretKey, algorithm);
-		return key;
+	// keystore loader
+	public void loadKeyStore() throws Exception {
+		if (!new File(m_keystoreFile).exists())
+			throw new Exception();
+		// load keystore file
+		FileInputStream in = new FileInputStream(m_keystoreFile);
+		m_keyStore = KeyStore.getInstance(m_keystoreType);
+		m_keyStore.load(in, m_kestorePass.toCharArray());
+	}
+	
+	// get key pair
+	public void getKeyPair() throws Exception {
+		// get private key
+		PrivateKey privateKey = (PrivateKey) m_keyStore.getKey(
+				m_keystoreAlias, m_kestorePass.toCharArray());
+		Certificate certificate = m_keyStore.getCertificate(m_keystoreAlias);
+		PublicKey publicKey = certificate.getPublicKey();
+		m_keyPair = new KeyPair(publicKey, privateKey);
+	}
+	
+	// read plaintext password file
+	public Map<String,String> readPlainFile() throws Exception {
+		Map<String,String> data = new HashMap<String,String>();
+		Scanner scan = new Scanner(new File(PLAINTEXT_PASSWORD_FILE));
+		String[] lineSplit;
+		while (scan.hasNext()) {
+			lineSplit = scan.nextLine().split(DELIM);
+			if (lineSplit.length != 2)
+				throw new Exception();
+			data.put(lineSplit[0], lineSplit[1]);
+		}
+		return data;
+	}
+	
+	// individually salt each user-pass pair
+	public Map<String,Pair<String,String>> season(Map<String,String> data) throws Exception {
+		Map<String,Pair<String,String>> saltyData = 
+				new HashMap<String,Pair<String,String>>();
+		
+		// initialize secure random for salting
+		SecureRandom rng = SecureRandom.getInstance(DEFAULT_SECURE_RANDOM_ALGORITHM);
+		byte[] randSalt = new byte[4];
+		// create salty data
+		for (String key: data.keySet()) {
+			rng.nextBytes(randSalt);
+			saltyData.put(
+					key,
+					new Pair<String,String>(
+							encoder.encode(randSalt).replaceAll("\\n|\\r", ""),
+							data.get(key)));
+		}
+		return saltyData;
+	}
+	
+	// substitute the passwords with hashes
+	public void hash(Map<String,Pair<String,String>> saltyData) throws Exception {
+		// init hash
+		MessageDigest digest = MessageDigest.getInstance(DEFAULT_HASH_ALGORITHM);
+		Pair<String,String> value;
+		byte[] salt;
+		byte[] pass;
+		byte[] saltAndPass;
+		byte[] hash;
+		for (String key: saltyData.keySet()) {
+			value = saltyData.get(key);
+			salt = decoder.decodeBuffer(value.first);
+			pass = value.second.getBytes();
+			saltAndPass = new byte[salt.length + pass.length];
+			int i = 0;
+			for (; i < salt.length; i++)
+				saltAndPass[i] = salt[i];
+			for (; i < salt.length + pass.length; i++)
+				saltAndPass[i] = pass[i - salt.length];
+			hash = digest.digest(saltAndPass);
+			value.second = encoder.encode(hash).replaceAll("\\n|\\r", "");
+		}
+	}
+	
+	// create stream of bytes from map
+	public byte[] serializeToBytes(Object obj) throws Exception {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		ObjectOutput out = new ObjectOutputStream(bos);   
+		out.writeObject(obj);
+		byte[] bytes = bos.toByteArray();
+		out.close();
+		bos.close();
+		return bytes;
+	}
+	
+	// encrypt stream of bytes
+	public String encrypt(byte[] plainBytes) throws Exception {
+		Cipher cipher = Cipher.getInstance(DEFAULT_ENC_ALGORITHM);
+		cipher.init(Cipher.ENCRYPT_MODE, m_keyPair.getPublic());
+		byte[] cipherBytes = cipher.doFinal(plainBytes);
+		return encoder.encode(cipherBytes).replaceAll("\\r|\\n", "");
+	}
+	
+	// write to file
+	public void writeToFile(String text) throws Exception {
+		BufferedWriter bw = new BufferedWriter(new FileWriter(m_outEncPassFile));
+		bw.write(text);
+		bw.flush();
+		bw.close();
+	}
+	
+	// for holding pairs
+	public static class Pair<T,E> {
+		protected T first;
+		protected E second;
+		
+		public Pair(T first, E second) {
+			this.first = first;
+			this.second = second;
+		}
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
