@@ -95,39 +95,15 @@ class MITMAdminServer implements Runnable
 	// *** START *** TODO
 	// added method for user authentication
 	private boolean authenticate(String username, String password) {
-		// decrypt admin password file
-		Scanner scan = null;
-		String encPasswordFile = System.getProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE);
 		try {
-			scan = new Scanner(new File(encPasswordFile));
-		} catch (FileNotFoundException e) {
-			System.err.println("Failed opening encrypted password file: " + encPasswordFile);
-			e.printStackTrace();
-			return false;
-		}
-		String ciphertext = scan.nextLine();
-		scan.close();
-		String dec = null;
-		try {
-			dec = PasswordFileEncryption2.decrypt(ciphertext);
+			return (new PasswordFileEncryption()).authenticate(
+					username, password, System.getProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY,
+							JSSEConstants.CIPHERTEXT_PASSWORD_FILE_DEFAULT));
 		} catch (Exception e) {
-			System.err.println("Failed decrypting the ciphertext: " + ciphertext);
+			System.err.println("Failed to authenticate.");
 			e.printStackTrace();
 			return false;
 		}
-		
-		// hash given username and password and compare to decrypted value
-		String input = username + PasswordFileEncryption2.DELIMETER + password;
-		String hash = null;
-		try {
-			hash = PasswordFileEncryption2.hash(input);
-		} catch (Exception e) {
-			System.err.println("Failed hashing the given username/password: " + username + "/" + password);
-			e.printStackTrace();
-			return false;
-		}
-		
-		return hash != null && dec != null && hash.equals(dec);
 	}
 	
 	// implemented the doCommand method

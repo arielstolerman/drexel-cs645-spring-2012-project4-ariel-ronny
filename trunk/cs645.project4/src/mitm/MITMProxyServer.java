@@ -88,23 +88,8 @@ public class MITMProxyServer
 				} else if (args[i].equals("-timeout")) {
 					timeout = Integer.parseInt(args[++i]) * 1000;
 				} else if( args[i].equals("-pwdFile")) {
-					
-					// *** START *** TODO
-					
-					// create encrypted password file
-					// Format:
-					// should contain only one line of the form:
-					// <username> <password>
-					// (i.e. one space as delimeter)
-					String plaintextPasswordFile = args[++i];
-					PasswordFileEncryption2 pfe = new PasswordFileEncryption2(new String[] {
-							"-input=" + plaintextPasswordFile,
-							"-output=" + plaintextPasswordFile + ".enc"
-					});
-					pfe.run();
-					
-					// *** END ***
-					
+					System.setProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY, //TODO added encrypted password file def
+							args[++i]);
 				} else if (args[i].equals("-adminPort")) {
 					adminPort = Integer.parseInt(args[++i]);
 				} else if (args[i].equals("-outputFile")) {
