@@ -14,7 +14,6 @@ import javax.crypto.Cipher;
 @SuppressWarnings("restriction")
 public class PasswordFileEncryption {
 
-	private static final int DEFAULT_KEYSIZE =		4096;
 	private static final String DEFAULT_ENC_ALGORITHM = "RSA";
 	private static final String DEFAULT_KEYSTORE_FILE = "mitm_keystore";
 	private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
@@ -89,6 +88,7 @@ public class PasswordFileEncryption {
 	private KeyStore m_keyStore = null;
 	private KeyPair m_keyPair = null;
 	
+	@SuppressWarnings("unchecked")
 	public void run() {
 		// get keystore properties
 		m_keystoreFile = System.getProperty(JSSEConstants.KEYSTORE_PROPERTY,
@@ -238,7 +238,7 @@ public class PasswordFileEncryption {
 		// create salty data
 		for (String key: data.keySet()) {
 			rng.nextBytes(randSalt);
-			encSalt = encoder.encode(randSalt).replaceAll("\\n|\\r", "");
+			encSalt = encoder.encode(randSalt)/*.replaceAll("\\r|\\n", "")*/;
 			saltyData.put(
 					key,
 					new Pair<String,String>(
@@ -283,7 +283,7 @@ public class PasswordFileEncryption {
 		Cipher cipher = Cipher.getInstance(DEFAULT_ENC_ALGORITHM);
 		cipher.init(Cipher.ENCRYPT_MODE, m_keyPair.getPublic());
 		byte[] cipherBytes = cipher.doFinal(plainBytes);
-		return encoder.encode(cipherBytes).replaceAll("\\r|\\n", "");
+		return encoder.encode(cipherBytes)/*.replaceAll("\\r|\\n", "")*/;
 	}
 	
 	// write to file
@@ -330,6 +330,7 @@ public class PasswordFileEncryption {
 	}
 	
 	// the entire authentication process from the file
+	@SuppressWarnings("unchecked")
 	public boolean authenticate(String username, String password,
 			String encPassFile) throws Exception {
 		// read from file

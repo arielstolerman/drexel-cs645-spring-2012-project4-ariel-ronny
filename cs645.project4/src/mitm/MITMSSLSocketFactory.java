@@ -89,7 +89,7 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 				null);
 
 		m_clientSocketFactory = m_sslContext.getSocketFactory();
-		m_serverSocketFactory = m_sslContext.getServerSocketFactory(); 
+		m_serverSocketFactory = m_sslContext.getServerSocketFactory();
 			}
 
 	/**
@@ -100,10 +100,43 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 	public MITMSSLSocketFactory(String remoteCN, BigInteger serialno)
 			throws IOException,GeneralSecurityException, Exception
 			{
-		// TODO: replace this with code to generate a new
-		// server certificate with common name remoteCN and serial number
-		// serialno
-		this();
+		// *** START *** TODO
+
+		// initialize (like the default constructor)
+		m_sslContext = SSLContext.getInstance("SSL");
+
+		final KeyManagerFactory keyManagerFactory =
+				KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+
+		final String keyStoreFile = System.getProperty(JSSEConstants.KEYSTORE_PROPERTY);
+		final char[] keyStorePassword = System.getProperty(JSSEConstants.KEYSTORE_PASSWORD_PROPERTY, "").toCharArray();
+		final String keyStoreType = System.getProperty(JSSEConstants.KEYSTORE_TYPE_PROPERTY, "jks");
+
+		final KeyStore keyStore;
+
+		if (keyStoreFile != null) {
+			keyStore = KeyStore.getInstance(keyStoreType);
+			keyStore.load(new FileInputStream(keyStoreFile), keyStorePassword);
+
+			this.ks = keyStore;
+		} else {
+			keyStore = null;
+		}
+		
+		// start forgery
+		
+		
+		// update keystore
+		keyManagerFactory.init(keyStore, keyStorePassword);
+
+		m_sslContext.init(keyManagerFactory.getKeyManagers(),
+				new TrustManager[] { new TrustEveryone() },
+				null);
+
+		m_clientSocketFactory = m_sslContext.getSocketFactory();
+		m_serverSocketFactory = m_sslContext.getServerSocketFactory();
+		
+		// *** END ***
 			}
 
 	public final ServerSocket createServerSocket(String localHost,
