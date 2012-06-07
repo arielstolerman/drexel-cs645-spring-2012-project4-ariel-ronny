@@ -6,15 +6,18 @@ package mitm;
 import java.io.*;
 import java.net.*;
 
+import javax.net.ssl.SSLSocket;
+
 public class MITMAdminClient
 {
-	private Socket m_remoteSocket;
+	private SSLSocket m_remoteSocket;
 	private String username;
 	private String password;
 	private String command;
 	private String commonName = "";
 
 	public static void main( String [] args ) {
+		args = new String[] {"-userName", "wayne", "-userPassword", "PartyOnGarth!", "-cmd", "shutdown"};
 		MITMAdminClient admin = new MITMAdminClient( args );
 		admin.run();
 	}
@@ -67,8 +70,13 @@ public class MITMAdminClient
 				}
 			}
 
-			// TODO upgrade this to an SSL connection
-			m_remoteSocket = new Socket( remoteHost, remotePort );
+			// *** START *** TODO
+			
+			// upgraded to an SSL connection
+			m_remoteSocket = 
+					(SSLSocket) (new MITMSSLSocketFactory()).createClientSocket(remoteHost, remotePort); 
+			
+			// *** END ***
 
 		}
 		catch (Exception e) {
@@ -101,7 +109,7 @@ public class MITMAdminClient
 				System.out.println(line);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 		System.err.println("Admin Client exited");
 		System.exit(0);

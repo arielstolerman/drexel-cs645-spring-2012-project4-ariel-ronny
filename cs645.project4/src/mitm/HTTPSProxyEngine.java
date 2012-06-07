@@ -94,7 +94,12 @@ public class HTTPSProxyEngine extends ProxyEngine
 		while (!m_shutdown) { //TODO made run conditional of not being shutdown
 			try {
 				//Plaintext Socket with client (i.e. browser)
-				final Socket localSocket = getServerSocket().accept();
+				Socket localSocket = null;
+				try {
+					localSocket = getServerSocket().accept();
+				} catch (Exception e) {
+					getServerSocket().close();
+				}
 
 				// Grab the first plaintext upstream buffer, which we're hoping is 
 				// a CONNECT message.
@@ -236,6 +241,8 @@ public class HTTPSProxyEngine extends ProxyEngine
 	// setter for engine shutdown flag
 	public void shutdown() {
 		m_shutdown = true;
+		System.out.println("Server is shutting down. Goodbye!");
+		System.exit(0);
 	}
 
 	// *** END ***

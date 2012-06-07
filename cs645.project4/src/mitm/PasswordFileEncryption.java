@@ -75,21 +75,9 @@ public class PasswordFileEncryption {
 				);
 		
 	}
-	
+
 	// constructor
-	public PasswordFileEncryption() {}
-	
-	private String m_keystoreFile;
-	private String m_keystorePass;
-	private String m_keystoreType;
-	private String m_keystoreAlias;
-	private String m_outEncPassFile;
-	
-	private KeyStore m_keyStore = null;
-	private KeyPair m_keyPair = null;
-	
-	@SuppressWarnings("unchecked")
-	public void run() {
+	public PasswordFileEncryption() {
 		// get keystore properties
 		m_keystoreFile = System.getProperty(JSSEConstants.KEYSTORE_PROPERTY,
 				DEFAULT_KEYSTORE_FILE);
@@ -101,7 +89,19 @@ public class PasswordFileEncryption {
 				JSSEConstants.DEFAULT_ALIAS);
 		m_outEncPassFile = System.getProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY,
 				JSSEConstants.CIPHERTEXT_PASSWORD_FILE_DEFAULT);
-		
+	}
+	
+	private String m_keystoreFile;
+	private String m_keystorePass;
+	private String m_keystoreType;
+	private String m_keystoreAlias;
+	private String m_outEncPassFile;
+	
+	private KeyStore m_keyStore = null;
+	private KeyPair m_keyPair = null;
+	
+	@SuppressWarnings("unchecked")
+	public void run() {		
 		// load keystore
 		try {
 			loadKeyStore();
@@ -329,10 +329,18 @@ public class PasswordFileEncryption {
 		return Arrays.equals(hash, originalHash);
 	}
 	
-	// the entire authentication process from the file
+	
+	
+	/*
+	 * the entire authentication process from the file
+	 * used by MITMAdminServer
+	 */
 	@SuppressWarnings("unchecked")
 	public boolean authenticate(String username, String password,
 			String encPassFile) throws Exception {
+		// load keystore and get key-pair
+		loadKeyStore();
+		getKeyPair();
 		// read from file
 		Scanner scan = new Scanner(new File(encPassFile));
 		String ciphertext = "";
@@ -345,6 +353,7 @@ public class PasswordFileEncryption {
 				(HashMap<String,Pair<String,String>>) toObject(plainBytes);
 		return authenticate(username, password, saltedHashedData);
 	}
+	
 	
 	
 	// for holding pairs
