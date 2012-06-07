@@ -103,27 +103,33 @@ The plaintext password file format has each user-password pair space-seperated i
 Class MITMSSLSocketFactory
 ==========================
 This class was extended to create a forged certificate used by the SSL Proxy Server.
-
-//TODO
+We first extract the certificate stored in the keystore. Then we create a new X509Certificate to be forged,
+with the target host's CN and serial number. We set the key-pair of the forged certificate to the stored,
+and set the stored as the issuer and signer of the forged.
+We then update the keystore to contain (with the same alias) the newly forged certificate.
 
 Class MITMAdminServer
 =====================
-Extended this class to listen on incoming AdminClient connections, authentication (as described above) and executing the commands
+Extended this class to listen on incoming AdminClient connections, authentication (as described above) and executing the commands.
 
 Class MITMAdminClient
 =====================
-Extended this class to successfully connect to the AdminServer and issue the shutdown and stats commands
+Extended this class to successfully connect to the AdminServer and issue the shutdown and stats commands.
 
-Answers on questions:
+Answers to questions:
 =====================
 Why is this attack less successful on Firefox 3? 
-Firefox 3 blocks SSL connections that use self-signed certificates, when we tried our project on Firefox 3 we got a secure connection error message.
+Firefox 3 blocks SSL connections that use self-signed certificates. When we tried our project on Firefox 3 we got a secure connection error message.
 
 What are the advantages and disadvantages of their approach? 
 In Firefox 2 there WAS a warning to the user about the certificate being self signed, but a typical user may ignore the 'fine print' and 
 just click OK to move on (or define an exception). In Firefox3 this attack can't succeed because the connection will fail, which is an advantage.
-The disadvantage is that Firefox3 will blindly block any selg signed certificate, which means that in order to have SSL security one has to go through an authority and pay for a certificate, instead of just self-signing the certificate.  
+The disadvantage is that Firefox3 will blindly block any self signed certificate, which means that in order to have SSL security one has to go
+through an authority and pay for a certificate, instead of just self-signing the certificate.  
 
 How else might you change a web browser to make it less likely that a user would be fooled by an attack like the one you implemented?
-Another way to solve this would be to have some idle way between Firefox2 and Firefox3 - no we won't automatically block SSL connections with all self-signed certificates, but on the other hand we can present a more informative respond to the user, one that does not invite this 'auto-dismiss'. For example, the warning could have more information, and instead of just clicking "OK" we could take the user to a form where they will have to do a little more and define an exception.
-This is still not ideal for uneducated users, so it seems like the problem can be solved for everyone. 
+Another way to solve this would be to have some middle way between Firefox2 and Firefox3 - no, we won't automatically block SSL connections with all self-signed certificates,
+but on the other hand we can present a more informative respond to the user, one that does not invite this 'auto-dismiss' behavior.
+For example, the warning could have more information, and instead of just clicking "OK" we could take the user to a form where they will have to do a little more and define an exception.
+This is still not ideal for uneducated users, so it seems like the problem cannot be solved for everyone.
+
