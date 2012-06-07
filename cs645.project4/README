@@ -83,6 +83,9 @@ We also tested the following scenarios for the admin client login:
 - stats command
 - shutdown command
 
+We tested the server in a Windows environment (with Firefox2), as we weren't able to
+install an old browser on TUX for testing.
+
 
 SYSTEM DESIGN:
 =============
