@@ -47,8 +47,8 @@ public class HTTPSProxyEngine extends ProxyEngine
 
 	private final ProxySSLEngine m_proxySSLEngine;
 
-	private boolean m_shutdown = false; //TODO indicator to whether the engine is shutdown by admin
-	private int m_proxiedRequestsCount = 0; //TODO proxied requests count
+	private boolean m_shutdown = false; // indicator to whether the engine is shutdown by admin
+	private int m_proxiedRequestsCount = 0; // proxied requests count
 
 	public HTTPSProxyEngine(MITMPlainSocketFactory plainSocketFactory,
 			MITMSSLSocketFactory sslSocketFactory,
@@ -91,7 +91,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 		// Should be more than adequate.
 		final byte[] buffer = new byte[40960];
 
-		while (!m_shutdown) { //TODO made run conditional of not being shutdown
+		while (!m_shutdown) { // made run conditional of not being shutdown
 			try {
 				//Plaintext Socket with client (i.e. browser)
 				Socket localSocket = null;
@@ -152,7 +152,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 					String serverCN = null;
 					BigInteger serialno = null;
 
-					// *** START *** TODO
+					// *** START *** 
 
 					// code for getting the remote server CN and serial number from its certificate
 					iaik.x509.X509Certificate iaikCert = new iaik.x509.X509Certificate(
@@ -200,7 +200,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 					// will now start sending SSL data to localSocket.
 					sendClientResponse(out,"200 OK",remoteHost,remotePort);
 					
-					m_proxiedRequestsCount++; //TODO increment the number of proxied requests
+					m_proxiedRequestsCount++; // increment the number of proxied requests
 				}
 				else { //Not a CONNECT request.. nothing we can do.
 					System.err.println(
@@ -231,7 +231,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 		out.flush();
 	}
 
-	// *** START *** TODO
+	// *** START *** 
 
 	// getter for the number of proxied requests
 	public int getProxiedRequestsCount() {
@@ -279,7 +279,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 				throws IOException, java.security.GeneralSecurityException, Exception {
 			MITMSSLSocketFactory ssf;
 
-			//*** START *** TODO
+			//*** START *** 
 
 			// caching server-socket factory for better performance
 			// caching the factory and not the socket as many sockets can be created for
@@ -300,7 +300,7 @@ public class HTTPSProxyEngine extends ProxyEngine
 			return m_serverSocket;
 		}
 
-		// *** server socket factory map for createServerSocket *** TODO
+		// *** server socket factory map for createServerSocket *** 
 		private Map<String,MITMSSLSocketFactory> socketFactoryMap = new HashMap<String,MITMSSLSocketFactory>();
 
 		/*

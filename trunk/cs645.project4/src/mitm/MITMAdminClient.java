@@ -4,7 +4,6 @@
 package mitm;
 
 import java.io.*;
-import java.net.*;
 
 import javax.net.ssl.SSLSocket;
 
@@ -70,7 +69,7 @@ public class MITMAdminClient
 				}
 			}
 
-			// *** START *** TODO
+			// *** START ***
 			
 			// upgraded to an SSL connection
 			m_remoteSocket = 

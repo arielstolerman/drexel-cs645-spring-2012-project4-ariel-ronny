@@ -88,7 +88,7 @@ public class MITMProxyServer
 				} else if (args[i].equals("-timeout")) {
 					timeout = Integer.parseInt(args[++i]) * 1000;
 				} else if( args[i].equals("-pwdFile")) {
-					System.setProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY, //TODO added encrypted password file def
+					System.setProperty(JSSEConstants.CIPHERTEXT_PASSWORD_FILE_PROPERTY, // added encrypted password file def
 							args[++i]);
 				} else if (args[i].equals("-adminPort")) {
 					adminPort = Integer.parseInt(args[++i]);

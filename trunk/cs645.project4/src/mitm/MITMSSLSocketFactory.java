@@ -109,7 +109,7 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 	public MITMSSLSocketFactory(String remoteCN, BigInteger serialno)
 			throws IOException,GeneralSecurityException, Exception
 			{
-		// *** START *** TODO
+		// *** START ***
 
 		// initialize (like the default constructor)
 		m_sslContext = SSLContext.getInstance("SSL");
