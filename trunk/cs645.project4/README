@@ -6,33 +6,82 @@ Ariel Stolerman & Ronny Abraham
 
 HOW TO RUN THE SYSTEM:
 ======================
-// TODO
+Setup
+-----
+For each new console you open, first source setup.sh:
+> . setup.sh
+
+Creating encrypted password file
+--------------------------------
+NOTE: no need to do it, as we already created mitm_admin_passwords.txt.enc (from the plaintext user-pass file
+mitm_admin_passwords.txt).
+
+> mitm_enc_pass.sh <other flags>
+
+E.g.:
+
+> mitm_enc_pass.sh -pwdFile <encrypted-passwords-filename>
+
+When running straightforwardly with
+> java mitm.PasswordFileEncryption
+It also accepts the arguments:
+-keyStore <Keystore file>
+-keyStorePassword <passphrase>
+-keyStoreType <keystore type>
+-keyStoreAlias <keystore alias>
+-pwdFile <output encrypted password file>
+
+Starting the MITM Proxy server (with admin server)
+--------------------------------------------------
+Shortcut:
+
+> mitm_server.sh <other flags>
+
+Or:
+
+> java mitm.MITMProxyServer -keyStore mitm_keystore -keyStorePassword falafel4u -outputFile output.txt
+
+Running the admin client
+------------------------
+Shortcut:
+
+> mitm_client.sh
+
+Or:
+
+> java mitm.MITMAdminClient -userName wayne -userPassword PartyOnGarth!
 
 
 KEYSTORE INFO:
 ==============
 We used the keytool utility to generate a keystore using the command:
-keytool -genkey -alias mykey -keysize 4096 -keypass falafel4u -storetype JKS -keyalg RSA -keystore mitm_keystore -validity 365
+> keytool -genkey -alias mykey -keysize 4096 -keypass falafel4u -storetype JKS -keyalg RSA -keystore mitm_keystore -validity 365
 
-Keystore filename - mitm_keystore
-Keystore password - falafel4u
+Keystore filename: mitm_keystore
+Keystore password: falafel4u
 
 
 ADDITIONAL FILES:
 =================
-mitm_admin_passwords.txt - plaintext user-password
-mitm_admin_passwords.txt.enc - encrypted user-password file
-output.txt - copy of proxy log file 
+mitm_admin_passwords.txt: plaintext user-password
+mitm_admin_passwords.txt.enc: encrypted user-password file
+output.txt: sample proxy log file 
+
 
 TESTING:
 ========
-We opened 3 accounts -  gmail, Facebook and twitter with the credentials:
+We opened 3 accounts - gmail, Facebook and twitter with the following credentials:
 user: ronnyandariel@gmail.com
 password: cs645mitm!
 
 We tested MITM with the three websites, and the output can be found in the output file.
-We also tested the following scenarios:
-bad username, bad password, bad command, stats command and shutdown command
+Note that the '!' character appears as '%21'.
+We also tested the following scenarios for the admin client login:
+- bad username
+- bad password,
+- bad command
+- stats command
+- shutdown command
 
 
 SYSTEM DESIGN:
@@ -40,16 +89,16 @@ SYSTEM DESIGN:
 
 Class PasswordFileEncryption
 ============================
-We use this class in two ways
+We use this class in two ways:
 (1) To encrypt the plaintext password file. We run the main method once to take the plaintext user-password file and create an encrypted password file.
 The plaintext password file format has each user-password pair space-seperated in each line.
 - first we load our generated keystore into a KeyStore object, then get the private and public keys
 - for each password we create a random-generated 4-byte salt, creating a map of usernames to Pair<password, random-salt>
-- we then hash the passwords using the salts with SHA-1, we also use a BASE64Decoder to encode binary to strings and vice versa
+- we then hash the passwords using the salts with SHA-1, we also use a BASE64Codec to encode binary to strings and vice versa (for "readable" bytes)
 - Next we serialize our data-map to a byte stream and then encrypt it with our public key and RSA, the result is the ciphertext pass-file
 
 (2) To Authenticate the username and password in the Admin Server - after Admin Client connects to the server.
-- We hash and salt the impute password, decrypt the cipher password file and match the passwords
+- We decrypt the cipher password file, hash and salt the input password and then match the two
 
 Class MITMSSLSocketFactory
 ==========================
