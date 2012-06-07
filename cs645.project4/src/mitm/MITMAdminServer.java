@@ -18,7 +18,7 @@ import javax.net.ssl.SSLServerSocket;
 
 class MITMAdminServer implements Runnable
 {
-	// *** START *** TODO
+	// *** START *** 
 	// added fields
 	private static final String ADSERV_PREFIX = "[ADMIN_SERVER] "; // for messages
 	private static PrintWriter m_socketWriter; // for transferring messages to the admin client
@@ -57,7 +57,7 @@ class MITMAdminServer implements Runnable
 						new BufferedInputStream(m_socket.getInputStream(),
 								buffer.length);
 				
-				// TODO for forwarding messages to the admin client
+				//  for forwarding messages to the admin client
 				m_socketWriter = new PrintWriter(m_socket.getOutputStream());
 				
 				// Read a buffer full.
@@ -78,7 +78,7 @@ class MITMAdminServer implements Runnable
 					boolean authenticated = authenticate(userName, password);
 					if( authenticated ) {
 						String message = ADSERV_PREFIX + "User " + userName + " authenticated";
-						System.out.println(message); // TODO added message
+						System.out.println(message); //  added message
 						m_socketWriter.println(message);
 						m_socketWriter.flush();
 						String command = userPwdMatcher.group(3);
@@ -86,7 +86,7 @@ class MITMAdminServer implements Runnable
 
 						doCommand( command );
 					}
-					// *** START *** TODO
+					// *** START *** 
 
 					else {
 						// report authentication failed
@@ -110,7 +110,7 @@ class MITMAdminServer implements Runnable
 		m_socketWriter.close();
 	}
 
-	// *** START *** TODO
+	// *** START *** 
 	// added method for user authentication
 	private boolean authenticate(String username, String password) {
 		try {
