@@ -1,0 +1,80 @@
+CS 645 
+NETWORK SECURITY
+PROJECT 4 - MITM
+
+Ariel Stolerman & Ronny Abraham
+
+HOW TO RUN THE SYSTEM:
+======================
+// TODO
+
+
+KEYSTORE INFO:
+==============
+We used the keytool utility to generate a keystore using the command:
+keytool -genkey -alias mykey -keysize 4096 -keypass falafel4u -storetype JKS -keyalg RSA -keystore mitm_keystore -validity 365
+
+Keystore filename - mitm_keystore
+Keystore password - falafel4u
+
+
+ADDITIONAL FILES:
+=================
+mitm_admin_passwords.txt - plaintext user-password
+mitm_admin_passwords.txt.enc - encrypted user-password file
+output.txt - copy of proxy log file 
+
+TESTING:
+========
+We opened 3 accounts -  gmail, Facebook and twitter with the credentials:
+user: ronnyandariel@gmail.com
+password: cs645mitm!
+
+We tested MITM with the three websites, and the output can be found in the output file.
+We also tested the following scenarios:
+bad username, bad password, bad command, stats command and shutdown command
+
+
+SYSTEM DESIGN:
+=============
+
+Class PasswordFileEncryption
+============================
+We use this class in two ways
+(1) To encrypt the plaintext password file. We run the main method once to take the plaintext user-password file and create an encrypted password file.
+The plaintext password file format has each user-password pair space-seperated in each line.
+- first we load our generated keystore into a KeyStore object, then get the private and public keys
+- for each password we create a random-generated 4-byte salt, creating a map of usernames to Pair<password, random-salt>
+- we then hash the passwords using the salts with SHA-1, we also use a BASE64Decoder to encode binary to strings and vice versa
+- Next we serialize our data-map to a byte stream and then encrypt it with our public key and RSA, the result is the ciphertext pass-file
+
+(2) To Authenticate the username and password in the Admin Server - after Admin Client connects to the server.
+- We hash and salt the impute password, decrypt the cipher password file and match the passwords
+
+Class MITMSSLSocketFactory
+==========================
+This class was extended to create a forged certificate used by the SSL Proxy Server.
+
+//TODO
+
+Class MITMAdminServer
+=====================
+Extended this class to listen on incoming AdminClient connections, authentication (as described above) and executing the commands
+
+Class MITMAdminClient
+=====================
+Extended this class to successfully connect to the AdminServer and issue the shutdown and stats commands
+
+Answers on questions:
+=====================
+Why is this attack less successful on Firefox 3? 
+Firefox 3 blocks SSL connections that use self-signed certificates, when we tried our project on Firefox 3 we got a secure connection error message.
+
+What are the advantages and disadvantages of their approach? 
+In Firefox 2 there WAS a warning to the user about the certificate being self signed, but a typical user may ignore the 'fine print' and 
+just click OK to move on (or define an exception). In Firefox3 this attack can't succeed because the connection will fail, which is an advantage.
+The disadvantage is that Firefox3 will blindly block any selg signed certificate, which means that in order to have SSL security one has to go through an authority and pay for a certificate, instead of just self-signing the certificate.  
+
+How else might you change a web browser to make it less likely that a user would be fooled by an attack like the one you implemented?
+Another way to solve this would be to have some idle way between Firefox2 and Firefox3 - no we won't automatically block SSL connections with all self-signed certificates, but on the other hand we can present a more informative respond to the user, one that does not invite this 'auto-dismiss'. For example, the warning could have more information, and instead of just clicking "OK" we could take the user to a form where they will have to do a little more and define an exception.
+This is still not ideal for uneducated users, so it seems like the problem can be solved for everyone. 
