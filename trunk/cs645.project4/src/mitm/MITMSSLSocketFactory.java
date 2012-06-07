@@ -172,8 +172,6 @@ public final class MITMSSLSocketFactory implements MITMSocketFactory
 		
 		// update keystore
 		keyManagerFactory.init(keyStore, keyStorePassword);
-		
-		System.out.println("Certificate created for CN: " + forgedCert.getSubjectDN() + ", serial: " + forgedCert.getSerialNumber());
 
 		m_sslContext.init(keyManagerFactory.getKeyManagers(),
 				new TrustManager[] { new TrustEveryone() },

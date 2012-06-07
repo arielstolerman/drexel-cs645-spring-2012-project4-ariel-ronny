@@ -18,8 +18,13 @@ import javax.net.ssl.SSLServerSocket;
 
 class MITMAdminServer implements Runnable
 {
-	private static final String ADSERV_PREFIX = "[ADMIN_SERVER] "; //TODO for messages
-	private SSLServerSocket m_serverSocket; //TODO changed from ServerSocket
+	// *** START *** TODO
+	// added fields
+	private static final String ADSERV_PREFIX = "[ADMIN_SERVER] "; // for messages
+	private static PrintWriter m_socketWriter; // for transferring messages to the admin client
+	private SSLServerSocket m_serverSocket; // changed from ServerSocket
+	private boolean m_shutdown = false;
+	// *** END ***
 	private Socket m_socket = null;
 	private HTTPSProxyEngine m_engine;
 
@@ -39,18 +44,21 @@ class MITMAdminServer implements Runnable
 
 	public void run() {
 		System.out.println("Admin server initialized, listening on port " + m_serverSocket.getLocalPort());
-		while( true ) {
+		while(!m_shutdown) {
 			try {
 				m_socket = m_serverSocket.accept();
-
+				
 				byte[] buffer = new byte[40960];
 
 				Pattern userPwdPattern =
-						Pattern.compile("username:(\\S+)\\s+password:(\\S+)\\s+command:(\\S+)\\sCN:(\\S*)\\s");
+						Pattern.compile("username:(\\S+)\\s+password:(\\S+)\\s+command:(\\S+)\\s+CN:(\\S*)\\s+");
 
 				BufferedInputStream in =
 						new BufferedInputStream(m_socket.getInputStream(),
 								buffer.length);
+				
+				// TODO for forwarding messages to the admin client
+				m_socketWriter = new PrintWriter(m_socket.getOutputStream());
 				
 				// Read a buffer full.
 				int bytesRead = in.read(buffer);
@@ -69,7 +77,10 @@ class MITMAdminServer implements Runnable
 					// if authenticated, do the command
 					boolean authenticated = authenticate(userName, password);
 					if( authenticated ) {
-						System.out.println(ADSERV_PREFIX + "User " + userName + " authenticated"); // TODO added message
+						String message = ADSERV_PREFIX + "User " + userName + " authenticated";
+						System.out.println(message); // TODO added message
+						m_socketWriter.println(message);
+						m_socketWriter.flush();
 						String command = userPwdMatcher.group(3);
 						//String commonName = userPwdMatcher.group(4); - unused
 
@@ -79,7 +90,10 @@ class MITMAdminServer implements Runnable
 
 					else {
 						// report authentication failed
-						System.out.println(ADSERV_PREFIX + "Authentication failed for user " + userName);
+						String message = ADSERV_PREFIX + "Authentication failed for user " + userName;
+						System.out.println(message);
+						m_socketWriter.println(message);
+						m_socketWriter.flush();
 						// close socket
 						m_socket.close();
 					}
@@ -93,6 +107,7 @@ class MITMAdminServer implements Runnable
 				e.printStackTrace();
 			}
 		}
+		m_socketWriter.close();
 	}
 
 	// *** START *** TODO
@@ -113,20 +128,30 @@ class MITMAdminServer implements Runnable
 	private void doCommand( String cmd ) throws IOException {	
 		cmd = cmd.toLowerCase();
 		
+		String message; 
 		// iterate over possible commands
 		if (cmd.equals("shutdown")) {
 			// shutdown MITM server
-			System.out.println(ADSERV_PREFIX + "Shutting down MITM server");
+			message = ADSERV_PREFIX + "Shutting down MITM server";
+			System.out.println(message);
+			m_socketWriter.println(message + ", see you later!");
+			m_socketWriter.flush();
 			m_engine.shutdown();
+			m_shutdown = true;
 		}
 		else if (cmd.equals("stats")) {
 			// List how many requests were proxied
-			System.out.println(ADSERV_PREFIX + "Proxied requests: " +
-					m_engine.getProxiedRequestsCount());
-			
+			message = ADSERV_PREFIX + "Proxied requests: " +
+					m_engine.getProxiedRequestsCount();
+			System.out.println(message);
+			m_socketWriter.println(message);
+			m_socketWriter.flush();
 		}
 		else {
-			System.out.println(ADSERV_PREFIX + "Unrecognized command: " + cmd);
+			message = ADSERV_PREFIX + "Unrecognized command: " + cmd;
+			System.out.println(message);
+			m_socketWriter.println(message);
+			m_socketWriter.flush();
 		}
 		
 		m_socket.close();
