@@ -16,6 +16,7 @@ public class MITMAdminClient
 	private String commonName = "";
 
 	public static void main( String [] args ) {
+		args = new String[]{"-userName","wayne","-userPassword","PartyOnGarth!","-cmd","shutdown"};
 		MITMAdminClient admin = new MITMAdminClient( args );
 		admin.run();
 	}
